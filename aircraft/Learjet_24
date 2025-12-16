@@ -1,0 +1,75 @@
+{
+    "geom": {
+        "S": 136.0,
+        "c": 5.4,
+        "b": 26.3,
+        "eps_s": 0.0
+    },
+    
+    "flight_cond": {
+        "h": 25000.0,
+        "M": 0.600,
+        "u_s": 610.0,
+        "q": 198.0,
+        "cg": 0.25,
+        "theta_s": 0.0
+    },
+
+    "mass_prop": {
+        "W": 4200.0,
+        "I_xx": 820.0,
+        "I_yy": 4830.0,
+        "I_zz": 5230.0,
+        "I_xz": 210.0
+    },
+
+    "cond_coeffs": {
+        "CL_s": 0.149,
+        "CD_s": 0.0220,
+        "CT_s": 0.0220,
+        "Cm": 0.0,
+        "Cm_T": 0.0
+    },
+
+    "stab_coeffs": {
+        "long": {
+            "CD_0": 0.0205,
+            "CD_u": 0.05,
+            "CD_alpha": 0.12,
+            "CT_u": -0.05,
+            "CL_0": 0.149,
+            "CL_u": 0.084,
+            "CL_alpha": 5.5,
+            "CL_alpha_dot": 4.2,
+            "CL_q": 10.0,
+            "Cm_0": -0.08,
+            "Cm_u": 0.0,
+            "Cm_alpha": -0.24,
+            "Cm_alpha_dot": -9.6,
+            "Cm_q": -17.7,
+            "Cm_Tu": 0.0,
+            "Cm_T_alpha": 0.0,
+            "CD_delta_e": 0.0,
+            "CL_delta_e": 0.38,
+            "Cm_delta_e": -0.88
+        },
+
+        "latdir": {
+            "Cl_beta": -0.110,
+            "Cl_p": -0.390,
+            "Cl_r": 0.280,
+            "CY_beta": -1.00,
+            "CY_p": -0.140,
+            "CY_r": 0.610,
+            "Cn_beta": 0.170,
+            "Cn_p": 0.090,
+            "Cn_r": -0.260,
+            "Cl_delta_a": 0.100,
+            "Cl_delta_r": -0.050,
+            "CY_delta_a": 0.0,
+            "CY_delta_r": -0.0280,
+            "Cn_delta_a": -0.003,
+            "Cn_delta_r": 0.0120
+        }
+    }
+}
