@@ -2,7 +2,7 @@ from aircraft.aircraft import Aircraft
 from flight_control_system.sas import SAS
 
 def main():
-    myaircraft = Aircraft("S211")
+    myaircraft = Aircraft("Learjet_24")
     myaircraft.stab_der.calculate_all()
     mySAS = SAS(myaircraft)
     mySAS.plot_bode()

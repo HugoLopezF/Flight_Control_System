@@ -53,6 +53,8 @@ MINUTES_TO_SECONDS = 60.0
 HOURS_TO_SECONDS = 3600.0
 #: Knots to meters per second conversion factor
 KNOTS_TO_METERS_PER_SECOND = 0.514444
+#: Slug to kg conversion factor
+SLUG_TO_KILOGRAMS = 14.59390
 
 
 class WeightUnit(Enum):
@@ -61,6 +63,7 @@ class WeightUnit(Enum):
     """
     KILOGRAMS = auto()
     POUNDS = auto()
+    SLUG = auto()
 
 
 class LengthUnit(Enum):
@@ -135,9 +138,13 @@ def convert_weight(value, from_ = WeightUnit.KILOGRAMS, to = WeightUnit.KILOGRAM
 
     if from_ is WeightUnit.POUNDS:
         converted *= POUNDS_TO_KILOGRAMS
+    elif from_ is WeightUnit.SLUG:
+        converted *= SLUG_TO_KILOGRAMS
 
     if to is WeightUnit.POUNDS:
         converted /= POUNDS_TO_KILOGRAMS
+    elif to is WeightUnit.SLUG:
+        converted /= SLUG_TO_KILOGRAMS
 
     return converted
 

@@ -4,6 +4,7 @@ import json
 import isacalc as isa
 from math import sin, cos
 from utilities.constants import GRAVITY as g 
+from utilities.units import LengthUnit, WeightUnit, convert_length, convert_weight
 
 class Aircraft:
     def __init__(self, model):
@@ -12,14 +13,36 @@ class Aircraft:
         # Load aircraft data
         with open(os.path.join(main_dir, 'aircraft', f'{model}.json'), 'r') as data:
             aircraft_data = json.load(data)
+        aircraft_data = self.convert_to_SI(aircraft_data)
         self.geom = aircraft_data['geom']
         self.mass_prop = aircraft_data['mass_prop']
         self.cond_coeffs = aircraft_data['cond_coeffs']
         self.stab_coeffs = aircraft_data['stab_coeffs']
         atm = isa.Atmosphere().calculate(h=aircraft_data['flight_cond']['h'])
-        aircraft_data['flight_cond'].update({p: val for p, val in zip(['T', 'p', 'rho', 'a', 'mu'], atm)})
+        aircraft_data['flight_cond'].update({p: val for p, val in zip(['Zp', 'T', 'p', 'rho', 'a'], atm)})
         self.stab_der = StabilityDerivatives(self, aircraft_data['flight_cond'])
 
+    def convert_to_SI(self, aircraft_data):
+        aircraft_data['geom']['S'] = convert_length(convert_length(aircraft_data['geom']['S'], from_=LengthUnit.FEET), from_=LengthUnit.FEET)
+        aircraft_data['geom']['c'] = convert_length(aircraft_data['geom']['c'], from_=LengthUnit.FEET)
+        aircraft_data['geom']['b'] = convert_length(aircraft_data['geom']['b'], from_=LengthUnit.FEET)
+
+        aircraft_data['flight_cond']['h'] = convert_length(aircraft_data['flight_cond']['h'], from_=LengthUnit.FEET)
+        aircraft_data['flight_cond']['u_s'] = convert_length(aircraft_data['flight_cond']['u_s'], from_=LengthUnit.FEET)
+        aircraft_data['flight_cond']['q'] = convert_weight(aircraft_data['flight_cond']['q'], from_=WeightUnit.POUNDS) * g
+        aircraft_data['flight_cond']['q'] = 1 / convert_length(convert_length(1 / aircraft_data['flight_cond']['q'], from_=LengthUnit.FEET), from_=LengthUnit.FEET)
+
+        aircraft_data['mass_prop']['W'] = convert_weight(aircraft_data['mass_prop']['W'], from_=WeightUnit.POUNDS)
+        aircraft_data['mass_prop']['I_xx'] = convert_weight(aircraft_data['mass_prop']['I_xx'], from_=WeightUnit.SLUG)
+        aircraft_data['mass_prop']['I_xx'] = convert_length(convert_length(aircraft_data['mass_prop']['I_xx'], from_=LengthUnit.FEET), from_=LengthUnit.FEET)
+        aircraft_data['mass_prop']['I_yy'] = convert_weight(aircraft_data['mass_prop']['I_yy'], from_=WeightUnit.SLUG)
+        aircraft_data['mass_prop']['I_yy'] = convert_length(convert_length(aircraft_data['mass_prop']['I_yy'], from_=LengthUnit.FEET), from_=LengthUnit.FEET)
+        aircraft_data['mass_prop']['I_zz'] = convert_weight(aircraft_data['mass_prop']['I_zz'], from_=WeightUnit.SLUG)
+        aircraft_data['mass_prop']['I_zz'] = convert_length(convert_length(aircraft_data['mass_prop']['I_zz'], from_=LengthUnit.FEET), from_=LengthUnit.FEET)
+        aircraft_data['mass_prop']['I_xz'] = convert_weight(aircraft_data['mass_prop']['I_xz'], from_=WeightUnit.SLUG)
+        aircraft_data['mass_prop']['I_xz'] = convert_length(convert_length(aircraft_data['mass_prop']['I_xz'], from_=LengthUnit.FEET), from_=LengthUnit.FEET)
+
+        return aircraft_data
 
 class StabilityDerivatives:
     def __init__(self, Aircraft, FlightCondition):
@@ -46,7 +69,7 @@ class StabilityDerivatives:
         CX_s = W * g * sin(theta_s) / (0.5 * rho * S * u_s ** 2)
         CX_u = CT_u * cos(eps_s) - CD_u
 
-        Xu = rho * S * u_s * (CX_s + 0.5 * u_s * CX_u)
+        Xu = rho * S * u_s * (CX_s + 0.5 * CX_u)
         return Xu
     
     def calculate_Xw(self):
@@ -84,7 +107,7 @@ class StabilityDerivatives:
         CZ_s = - W * g * cos(theta_s) / (0.5 * rho * S * u_s ** 2)
         CZ_u = - CT_u * sin(eps_s) - CL_u
 
-        Zu = rho * S * u_s * (CZ_s + 0.5 * u_s * CZ_u)
+        Zu = rho * S * u_s * (CZ_s + 0.5 * CZ_u)
         return Zu
     
     def calculate_Zw(self):
@@ -102,12 +125,12 @@ class StabilityDerivatives:
     def calculate_Zw_dot(self):
         CL_alpha_dot = self.Aircraft.stab_coeffs['long']['CL_alpha_dot']
         rho = self.FlightCondition['rho']
-        u_s = self.FlightCondition['u_s']
         S = self.Aircraft.geom['S']
+        c = self.Aircraft.geom['c']
 
         CZ_alpha_dot = - CL_alpha_dot
 
-        Zw_dot = 0.5 * rho * S * u_s * CZ_alpha_dot
+        Zw_dot = 0.25 * rho * S * c * CZ_alpha_dot
         return Zw_dot
     
     def calculate_Zq(self):
@@ -115,10 +138,11 @@ class StabilityDerivatives:
         rho = self.FlightCondition['rho']
         u_s = self.FlightCondition['u_s']
         S = self.Aircraft.geom['S']
+        c = self.Aircraft.geom['c']
 
         CZ_q = - CL_q
 
-        Zq = 0.5 * rho * S * u_s ** 2 * CZ_q
+        Zq = 0.25 * rho * S * c * u_s * CZ_q
         return Zq
     
     def calculate_Zdelta_e(self):
@@ -138,7 +162,7 @@ class StabilityDerivatives:
         c = self.Aircraft.geom['c']
         Cm_u = self.Aircraft.stab_coeffs['long']['Cm_u']
 
-        Mu = 0.5* rho * S * c * u_s ** 2 * Cm_u
+        Mu = 0.5* rho * S * c * u_s * Cm_u
         return Mu
     
     def calculate_Mw(self):
@@ -152,15 +176,12 @@ class StabilityDerivatives:
         return Mw
     
     def calculate_Mw_dot(self):
-        CL_alpha_dot = self.Aircraft.stab_coeffs['long']['CL_alpha_dot']
+        Cm_alpha_dot = self.Aircraft.stab_coeffs['long']['Cm_alpha_dot']
         rho = self.FlightCondition['rho']
-        u_s = self.FlightCondition['u_s']
         S = self.Aircraft.geom['S']
         c = self.Aircraft.geom['c']
 
-        CZ_alpha_dot = - CL_alpha_dot
-
-        Mw_dot = 0.5 * rho * S * c * u_s * CZ_alpha_dot
+        Mw_dot = 0.25 * rho * S * c ** 2 * Cm_alpha_dot
         return Mw_dot
     
     def calculate_Mq(self):
@@ -170,7 +191,7 @@ class StabilityDerivatives:
         S = self.Aircraft.geom['S']
         c = self.Aircraft.geom['c']
 
-        Mq = 0.5 * rho * S * c * u_s ** 2 * Cm_q
+        Mq = 0.25 * rho * S * c ** 2 * u_s * Cm_q
         return Mq
     
     def calculate_Mdelta_e(self):
@@ -198,8 +219,9 @@ class StabilityDerivatives:
         rho = self.FlightCondition['rho']
         u_s = self.FlightCondition['u_s']
         S = self.Aircraft.geom['S']
+        b = self.Aircraft.geom['b']
 
-        Yp = 0.5 * rho * S * u_s ** 2 * CY_p
+        Yp = 0.25 * rho * S * b * u_s * CY_p
         return Yp
     
     def calculate_Yr(self):
@@ -207,8 +229,9 @@ class StabilityDerivatives:
         rho = self.FlightCondition['rho']
         u_s = self.FlightCondition['u_s']
         S = self.Aircraft.geom['S']
+        b = self.Aircraft.geom['b']
 
-        Yr = 0.5 * rho * S * u_s ** 2 * CY_r
+        Yr = 0.25 * rho * S * b * u_s * CY_r
         return Yr
     
     def calculate_Ydelta_r(self):
@@ -225,8 +248,9 @@ class StabilityDerivatives:
         rho = self.FlightCondition['rho']
         u_s = self.FlightCondition['u_s']
         S = self.Aircraft.geom['S']
+        b = self.Aircraft.geom['b']
 
-        Lv = 0.5 * rho * S * u_s * Cl_beta
+        Lv = 0.5 * rho * S * b * u_s * Cl_beta
         return Lv
     
     def calculate_Lp(self):
@@ -236,7 +260,7 @@ class StabilityDerivatives:
         S = self.Aircraft.geom['S']
         b = self.Aircraft.geom['b']
 
-        Lp = 0.5 * rho * S * b * u_s ** 2 * Cl_p
+        Lp = 0.25 * rho * S * b ** 2 * u_s * Cl_p
         return Lp
     
     def calculate_Lr(self):
@@ -246,7 +270,7 @@ class StabilityDerivatives:
         S = self.Aircraft.geom['S']
         b = self.Aircraft.geom['b']
 
-        Lr = 0.5 * rho * S * b * u_s ** 2 * Cl_r
+        Lr = 0.25 * rho * S * b ** 2 * u_s * Cl_r
         return Lr
     
     def calculate_Ldelta_a(self):
@@ -274,8 +298,9 @@ class StabilityDerivatives:
         rho = self.FlightCondition['rho']
         u_s = self.FlightCondition['u_s']
         S = self.Aircraft.geom['S']
+        b = self.Aircraft.geom['b']
 
-        Nv = 0.5 * rho * S * u_s * Cn_beta
+        Nv = 0.5 * rho * S * b * u_s * Cn_beta
         return Nv
     
     def calculate_Np(self):
@@ -285,7 +310,7 @@ class StabilityDerivatives:
         S = self.Aircraft.geom['S']
         b = self.Aircraft.geom['b']
 
-        Np = 0.5 * rho * S * b * u_s ** 2 * Cn_p
+        Np = 0.25 * rho * S * b ** 2 * u_s * Cn_p
         return Np
     
     def calculate_Nr(self):
@@ -295,7 +320,7 @@ class StabilityDerivatives:
         S = self.Aircraft.geom['S']
         b = self.Aircraft.geom['b']
 
-        Nr = 0.5 * rho * S * b * u_s ** 2 * Cn_r
+        Nr = 0.25 * rho * S * b ** 2 * u_s * Cn_r
         return Nr
     
     def calculate_Ndelta_a(self):

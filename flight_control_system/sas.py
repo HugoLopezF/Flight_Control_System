@@ -2,7 +2,7 @@ from aircraft import aircraft
 from utilities.constants import GRAVITY as g 
 from math import sin, cos, tan
 import numpy as np
-from sympy import *
+from sympy import Matrix, Symbol, simplify
 from sympy.physics.control.lti import TransferFunction
 import control
 import matplotlib.pyplot as plt
@@ -26,7 +26,7 @@ class SAS:
         return expr.xreplace({n : round(n, num_digits) for n in expr.atoms(Number)})
     
     def plot_bode(self):
-        self.get_TF()
+        self.get_std_matrices()
         for ax in ['long', 'latdir']:
             A = self.std_matrices[ax]['A']
             B = self.std_matrices[ax]['B']
@@ -39,7 +39,7 @@ class SAS:
             sys.output_labels = self.output_labels[ax]
             for i, name in enumerate(sys.output_labels):
                 plt.figure()
-                control.bode_plot(sys[i, 0])
+                control.bode_plot(sys[i, 0], omega_limits=[10e-3, 10e0], dB=True)
                 plt.suptitle(f'{name} / δe')
                 plt.show()
                 plt.close()
@@ -65,8 +65,8 @@ class SAS:
         self.get_all_matrices()
         for ax in ['long', 'latdir']:
             self.std_matrices[ax] = {
-                'A': np.linalg.inv(self.matrices[ax]['E']) @ self.matrices[ax]['A_prime'],
-                'B': np.linalg.inv(self.matrices[ax]['E']) @ self.matrices[ax]['B_prime']
+                'A': np.linalg.solve(self.matrices[ax]['E'], self.matrices[ax]['A_prime']),
+                'B': np.linalg.solve(self.matrices[ax]['E'], self.matrices[ax]['B_prime'])
             }
 
     def get_all_matrices(self):
@@ -105,14 +105,14 @@ class SAS:
 
         E = np.array([     
                 [W, 0, 0, 0],
-                [0, u_s * (W - Zw_dot), -(W * u_s + Zq), 0],
-                [0, -u_s * Mw_dot, -Mq, I_yy],
+                [0, u_s * (W - Zw_dot), 0, 0],
+                [0, -u_s * Mw_dot, 0, I_yy],
                 [0, 0, 1, 0]
         ])
         A_prime = np.array([
             [Xu, u_s * Xw, -W * g * cos(theta_s), 0],
-            [Zu, u_s * Zw, -W * g * sin(theta_s), 0],
-            [Mu, u_s * Mw, 0, 0],
+            [Zu, u_s * Zw, -W * g * sin(theta_s), W * u_s + Zq],
+            [Mu, u_s * Mw, 0, Mq],
             [0, 0, 0, 1]
         ])
         B_prime = np.array([Xdelta_e, Zdelta_e, Mdelta_e, 0])
