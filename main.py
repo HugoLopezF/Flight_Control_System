@@ -5,7 +5,9 @@ def main():
     myaircraft = Aircraft("Learjet_24")
     myaircraft.stab_der.calculate_all()
     mySAS = SAS(myaircraft)
-    mySAS.plot_bode()
+    mySAS.plot_bode_nichols(savefig=True)
+    # mySAS.plot_nichols(savefig=True)
+    # mySAS.plot_bode(savefig=True)
     a = 1
 
 

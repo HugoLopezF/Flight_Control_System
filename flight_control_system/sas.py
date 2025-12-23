@@ -1,11 +1,13 @@
 from aircraft import aircraft
 from utilities.constants import GRAVITY as g 
 from math import sin, cos, tan
+import os
 import numpy as np
-from sympy import Matrix, Symbol, simplify
+from sympy import Matrix, Symbol, Number, simplify
 from sympy.physics.control.lti import TransferFunction
 import control
 import matplotlib.pyplot as plt
+import matplotlib.gridspec as gridspec
 
 class SAS:
     def __init__(self, Aircraft):
@@ -14,18 +16,22 @@ class SAS:
         self.std_matrices = {}
         self.TF = {}
         self.output_labels = {
-            'long': ['Δu', 'Δα', 'Δθ', 'Δq'],
-            'latdir': ['Δβ', 'Δp', 'Δr', 'Δφ']
+            'long': [r'\Delta u', r'\Delta\alpha', r'\Delta\theta', r'\Delta q'],
+            'latdir': [r'\Delta\beta', r'\Delta p', r'\Delta r', r'\Delta\phi']
         }
         self.input_labels = {
-            'long': ['δe'],
-            'latdir': ['δa', 'δr']
+            'long': [r'\Delta\delta_e'],
+            'latdir': [r'\Delta\delta_a', r'\Delta\delta_r']
+        }
+        self.bode_lims = {
+            'long': [10e-3, 10e1],
+            'latdir': [10e-6, 10e1]
         }
 
     def round_expr(self, expr, num_digits):
         return expr.xreplace({n : round(n, num_digits) for n in expr.atoms(Number)})
     
-    def plot_bode(self):
+    def plot_bode_nichols(self, savefig=False, showfig=False):
         self.get_std_matrices()
         for ax in ['long', 'latdir']:
             A = self.std_matrices[ax]['A']
@@ -37,12 +43,121 @@ class SAS:
             sys = control.ss(A, B, C, D)
             sys.input_labels = self.input_labels[ax]
             sys.output_labels = self.output_labels[ax]
-            for i, name in enumerate(sys.output_labels):
-                plt.figure()
-                control.bode_plot(sys[i, 0], omega_limits=[10e-3, 10e0], dB=True)
-                plt.suptitle(f'{name} / δe')
-                plt.show()
-                plt.close()
+            for i, inp in enumerate(sys.output_labels):
+                for j, out in enumerate(sys.input_labels):
+                    # Figure layout
+                    fig = plt.figure(figsize=(14, 8))
+                    gs = gridspec.GridSpec(2, 2)
+
+                    ax_mag = fig.add_subplot(gs[0, 0])
+                    ax_phase = fig.add_subplot(gs[1, 0], sharex=ax_mag)
+                    ax_nichols = fig.add_subplot(gs[:, 1])
+
+                    # Bode plot
+                    control.bode_plot(sys[i, j], omega_limits=self.bode_lims[ax], dB=True, ax=[ax_mag, ax_phase])
+
+                    # Nichols plot
+                    control.nichols_plot(sys[i, j], omega=self.bode_lims[ax], ax=ax_nichols)
+                    ax_nichols.set_ylim(ax_mag.get_ylim())
+                    if ax_phase.get_ylim()[1] < -170:
+                        plt.close()
+                        fig = plt.figure(figsize=(14, 8))
+                        gs = gridspec.GridSpec(2, 2)
+
+                        ax_mag = fig.add_subplot(gs[0, 0])
+                        ax_phase = fig.add_subplot(gs[1, 0], sharex=ax_mag)
+                        ax_nichols = fig.add_subplot(gs[:, 1])
+                        mag, phase, omega = control.frequency_response(sys[i, j], omega_limits=self.bode_lims[ax])
+
+                        ax_mag.semilogx(omega, 20 * np.log10(mag))
+                        ax_mag.set_ylabel("Magnitude [dB]")
+                        ax_mag.grid(True, which="both")
+                        ax_mag.set_xlim(self.bode_lims[ax])
+
+                        ax_phase.semilogx(omega, np.unwrap(np.degrees(phase), discont=8 * np.pi))
+                        ax_phase.set_ylabel("Phase [deg]")
+                        ax_phase.set_xlabel("Frequency [rad/s]")
+                        ax_phase.grid(True, which="both")
+
+                        control.nichols_plot(sys[i, j], omega=self.bode_lims[ax], ax=ax_nichols)
+                        ax_nichols.set_ylim(ax_mag.get_ylim())
+                        min_phase = ax_phase.get_ylim()[0]
+                        max_phase = ax_phase.get_ylim()[1]
+                        ax_nichols.set_xlim((min_phase, max_phase))
+                    else:
+                        ax_nichols.set_xlim(ax_phase.get_ylim())
+                    
+                    ax_mag.set_title("Bode")
+                    ax_nichols.set_title("Nichols")
+                    plt.tight_layout()
+                    if savefig:
+                        inp_var = inp.replace('\\Delta', '').replace('\\', '').replace(' ', '')
+                        out_var = out.replace('\\Delta', '').replace('\\', '')
+                        figname = self.aircraft.model + f'_{inp_var}_{out_var}_Bode_Nichols.png'
+                        figdir = os.path.join(os.getcwd(), 'aircraft', self.aircraft.model)
+                        os.makedirs(figdir, exist_ok=True)
+                        plt.savefig(os.path.join(figdir, figname))
+                    if showfig:
+                        plt.show()
+                    plt.close()
+    
+    def plot_bode(self, savefig=False, showfig=False):
+        self.get_std_matrices()
+        for ax in ['long', 'latdir']:
+            A = self.std_matrices[ax]['A']
+            B = self.std_matrices[ax]['B']
+            m = A.shape[0]
+            n = B.shape[1] if len(B.shape) > 1 else 1
+            C = np.eye(A.shape[0])
+            D = np.zeros((m, n))
+            sys = control.ss(A, B, C, D)
+            sys.input_labels = self.input_labels[ax]
+            sys.output_labels = self.output_labels[ax]
+            for i, inp in enumerate(sys.output_labels):
+                for j, out in enumerate(sys.input_labels):
+                    plt.figure()
+                    control.bode_plot(sys[i, j], omega_limits=self.bode_lims[ax], dB=True)
+                    plt.suptitle(fr'Bode diagram of $[G(i\omega)]_{{{inp+out}}} = \frac{{{inp}}}{{{out}}}$')
+                    plt.tight_layout()
+                    if savefig:
+                        inp_var = inp.replace('\\Delta', '').replace('\\', '').replace(' ', '')
+                        out_var = out.replace('\\Delta', '').replace('\\', '')
+                        figname = self.aircraft.model + f'_{inp_var}_{out_var}_Bode.png'
+                        figdir = os.path.join(os.getcwd(), 'aircraft', self.aircraft.model)
+                        os.makedirs(figdir, exist_ok=True)
+                        plt.savefig(os.path.join(figdir, figname))
+                    if showfig:
+                        plt.show()
+                    plt.close()
+    
+    def plot_nichols(self, savefig=False, showfig=False):
+        self.get_std_matrices()
+        for ax in ['long', 'latdir']:
+            A = self.std_matrices[ax]['A']
+            B = self.std_matrices[ax]['B']
+            m = A.shape[0]
+            n = B.shape[1] if len(B.shape) > 1 else 1
+            C = np.eye(A.shape[0])
+            D = np.zeros((m, n))
+            sys = control.ss(A, B, C, D)
+            sys.input_labels = self.input_labels[ax]
+            sys.output_labels = self.output_labels[ax]
+            for i, inp in enumerate(sys.output_labels):
+                for j, out in enumerate(sys.input_labels):
+                    plt.figure()
+                    control.nichols_plot(sys[i, j], omega=self.bode_lims[ax])
+                    plt.suptitle(fr'Nichols diagram of $[G(i\omega)]_{{{inp+out}}} = \frac{{{inp}}}{{{out}}}$')
+                    plt.tight_layout()
+                    if savefig:
+                        inp_var = inp.replace('\\Delta', '').replace('\\', '').replace(' ', '')
+                        out_var = out.replace('\\Delta', '').replace('\\', '')
+                        figname = self.aircraft.model + f'_{inp_var}_{out_var}_Nichols.png'
+                        figdir = os.path.join(os.getcwd(), 'aircraft', self.aircraft.model)
+                        os.makedirs(figdir, exist_ok=True)
+                        plt.savefig(os.path.join(figdir, figname))
+                    if showfig:
+                        plt.show()
+                    plt.close()
 
     def print_TF(self):
         self.get_TF()

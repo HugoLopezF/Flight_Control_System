@@ -1,7 +1,7 @@
 from pathlib import Path
 import os
 import json
-import isacalc as isa
+# import isacalc as isa
 from math import sin, cos
 from utilities.constants import GRAVITY as g 
 from utilities.units import LengthUnit, WeightUnit, convert_length, convert_weight
@@ -9,6 +9,8 @@ from utilities.units import LengthUnit, WeightUnit, convert_length, convert_weig
 class Aircraft:
     def __init__(self, model):
         main_dir = Path.cwd()
+
+        self.model = model
 
         # Load aircraft data
         with open(os.path.join(main_dir, 'aircraft', f'{model}.json'), 'r') as data:
@@ -18,8 +20,9 @@ class Aircraft:
         self.mass_prop = aircraft_data['mass_prop']
         self.cond_coeffs = aircraft_data['cond_coeffs']
         self.stab_coeffs = aircraft_data['stab_coeffs']
-        atm = isa.Atmosphere().calculate(h=aircraft_data['flight_cond']['h'])
-        aircraft_data['flight_cond'].update({p: val for p, val in zip(['Zp', 'T', 'p', 'rho', 'a'], atm)})
+        # atm = isa.Atmosphere().calculate(h=aircraft_data['flight_cond']['h'])
+        # aircraft_data['flight_cond'].update({p: val for p, val in zip(['Zp', 'T', 'p', 'rho', 'a'], atm)})
+        aircraft_data['flight_cond'].update({'rho': 2 * aircraft_data['flight_cond']['q'] / aircraft_data['flight_cond']['u_s'] ** 2})
         self.stab_der = StabilityDerivatives(self, aircraft_data['flight_cond'])
 
     def convert_to_SI(self, aircraft_data):
