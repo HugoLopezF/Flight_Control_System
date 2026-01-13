@@ -40,7 +40,27 @@ class SAS:
     def round_expr(self, expr, num_digits):
         return expr.xreplace({n : round(n, num_digits) for n in expr.atoms(Number)})
     
-    def plot_step(self, step=1, savefig=False, showfig=False):
+    def input_step(self, t, amp=1):
+        return amp * np.ones_like(t)
+
+    def input_sat_ramp(self, t, amp=1, t_end=10):
+        slope = amp / t_end
+        return np.minimum(slope * t, amp)
+    
+    def get_response(self, sys, t, amp=1, t_end=10, input_type=None):
+
+        if input_type == "step":
+            u = self.input_step(t, amp=amp)
+        elif input_type == "sat_ramp":
+            u = self.input_sat_ramp(t, amp=amp, t_end=t_end)
+        else:
+            raise ValueError("No input type selected. Please select 'step', or 'sat_ramp'")
+        
+        t_out, y_out = control.forced_response(sys, t, u)
+
+        return t_out, y_out, u
+
+    def plot_response(self, input_type=None, amp=1, t_end=10, savefig=False, showfig=False):
         if not self.std_matrices:
             self.get_std_matrices()
         for ax in ['long', 'latdir']:
@@ -53,25 +73,23 @@ class SAS:
             sys = control.ss(A, B, C, D)
             sys.input_labels = [f'${var}$' for var in self.input_labels[ax]]
             sys.output_labels = [f'${var}$' for var in self.output_labels[ax]]
-
-            plt.figure()
+        
             t = np.linspace(0, 700, 10000)
-            u = np.array([step / 180 * np.pi * np.ones_like(t) for _ in range(0, len(sys.input_labels))])
-            control.time_response_plot(control.forced_response(sys, t, u))
-            plt.suptitle(f'System time response to {step} deg step')
-            plt.tight_layout()
+            t_out, y_out, u = self.get_response(sys, t, amp=amp, t_end=t_end, input_type=input_type)
+
+            fig, axes = plt.subplots(4, 1, sharex=True)
+            for i, a in enumerate(axes):
+                a.plot(t_out, y_out[i, :])
+                a.set_ylabel(sys.output_labels[i])
 
             if savefig:
-                figname = self.aircraft.model + f'{step}_deg_step_response.png'
+                figname = self.aircraft.model + f'{amp}_deg_step_response.png'
                 figdir = os.path.join(os.getcwd(), 'aircraft', self.aircraft.model)
                 os.makedirs(figdir, exist_ok=True)
                 plt.savefig(os.path.join(figdir, figname))
             if showfig:
                 plt.show()
             plt.close()
-    
-    def plot_response(self, input, savefig=False, showfig=False):
-        pass
     
     def plot_bode_nichols(self, savefig=False, showfig=False):
         if not self.std_matrices:
