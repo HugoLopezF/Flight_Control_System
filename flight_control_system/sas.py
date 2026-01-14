@@ -47,20 +47,51 @@ class SAS:
         slope = amp / t_end
         return np.minimum(slope * t, amp)
     
-    def get_response(self, sys, t, amp=1, t_end=10, input_type=None):
-
-        if input_type == "step":
-            u = self.input_step(t, amp=amp)
-        elif input_type == "sat_ramp":
-            u = self.input_sat_ramp(t, amp=amp, t_end=t_end)
+    def get_response(self, sys, t, amp=1, t_end=10, channel=None, input_type=None):
+        if channel is None:
+            raise ValueError("Please select an input channel.")
         else:
-            raise ValueError("No input type selected. Please select 'step', or 'sat_ramp'")
+            channel = (channel,)
+            amp = (amp,)
+
+        # Select input type
+        if input_type == "step":
+            input_func = lambda amp: self.input_step(t, amp)
+        elif input_type == "sat_ramp":
+            input_func = lambda amp: self.input_sat_ramp(t, amp, t_end)
+        else:
+            raise ValueError("No input type selected. Please select 'step', or 'sat_ramp'.")
+        
+        # Allocate input
+        u = np.zeros((len(sys.input_labels), len(t)))
+
+        # Fill response channels
+        for ch, a in zip(channel, amp):
+            idx = sys.input_labels.index(ch)
+            u[idx, :] = input_func(a)
         
         t_out, y_out = control.forced_response(sys, t, u)
 
         return t_out, y_out, u
+    
+    def plot_response(self, sys, t, input_type=None, amp=1, t_end=10, channel=None, savefig=False, showfig=False):
+        t_out, y_out, u = self.get_response(sys, t, amp=amp, t_end=t_end, channel=channel, input_type=input_type)
 
-    def plot_response(self, input_type=None, amp=1, t_end=10, savefig=False, showfig=False):
+        fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
+        for i, a in enumerate(axes):
+            a.plot(t_out, y_out[i, :])
+            a.set_ylabel(sys.output_labels[i])
+
+        if savefig:
+            figname = self.aircraft.model + f'{amp}_deg_step_response.png'
+            figdir = os.path.join(os.getcwd(), 'aircraft', self.aircraft.model)
+            os.makedirs(figdir, exist_ok=True)
+            plt.savefig(os.path.join(figdir, figname))
+        if showfig:
+            plt.show()
+        plt.close()
+
+    def plot_cbc_response(self, input_type=None, amp=1, t_end=10, savefig=False, showfig=False):
         if not self.std_matrices:
             self.get_std_matrices()
         for ax in ['long', 'latdir']:
@@ -75,21 +106,8 @@ class SAS:
             sys.output_labels = [f'${var}$' for var in self.output_labels[ax]]
         
             t = np.linspace(0, 700, 10000)
-            t_out, y_out, u = self.get_response(sys, t, amp=amp, t_end=t_end, input_type=input_type)
-
-            fig, axes = plt.subplots(4, 1, sharex=True)
-            for i, a in enumerate(axes):
-                a.plot(t_out, y_out[i, :])
-                a.set_ylabel(sys.output_labels[i])
-
-            if savefig:
-                figname = self.aircraft.model + f'{amp}_deg_step_response.png'
-                figdir = os.path.join(os.getcwd(), 'aircraft', self.aircraft.model)
-                os.makedirs(figdir, exist_ok=True)
-                plt.savefig(os.path.join(figdir, figname))
-            if showfig:
-                plt.show()
-            plt.close()
+            for ch in sys.input_labels:
+                self.plot_response(sys, t, input_type=input_type, amp=amp, t_end=t_end, channel=ch, savefig=savefig, showfig=showfig)
     
     def plot_bode_nichols(self, savefig=False, showfig=False):
         if not self.std_matrices:
