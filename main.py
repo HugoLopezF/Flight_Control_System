@@ -5,7 +5,7 @@ def main():
     myaircraft = Aircraft("S211")
     myaircraft.stab_der.calculate_all()
     mySAS = SAS(myaircraft)
-    mySAS.plot_cbc_response(input_type="step", amp=1)
+    mySAS.plot_cbc_response(input_type="sat_ramp", amp=1, t_end=20)
     a = 1
 
 

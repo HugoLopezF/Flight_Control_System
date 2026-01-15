@@ -24,6 +24,10 @@ class SAS:
         self.matrices = {}
         self.std_matrices = {}
         self.TF = {}
+        self.input_channels = {
+            'long': ['elevator'],
+            'latdir': ['ailerons', 'elevator']
+        }
         self.output_labels = {
             'long': [r'\Delta u', r'\Delta\alpha', r'\Delta\theta', r'\Delta q'],
             'latdir': [r'\Delta\beta', r'\Delta p', r'\Delta r', r'\Delta\phi']
@@ -46,13 +50,18 @@ class SAS:
     def input_sat_ramp(self, t, amp=1, t_end=10):
         slope = amp / t_end
         return np.minimum(slope * t, amp)
-    
-    def get_response(self, sys, t, amp=1, t_end=10, channel=None, input_type=None):
+
+    def get_response(self, t, sys_type=None, amp=1, t_end=10, channel=None, input_type=None):
+        sys = self.get_sys(sys_type)
+
         if channel is None:
             raise ValueError("Please select an input channel.")
         else:
-            channel = (channel,)
-            amp = (amp,)
+            if channel not in self.input_channels[sys_type]:
+                raise ValueError("Please select a valid input channel.")
+            else:
+                channel = (channel,)
+                amp = (amp * np.pi / 180,)
 
         # Select input type
         if input_type == "step":
@@ -63,27 +72,38 @@ class SAS:
             raise ValueError("No input type selected. Please select 'step', or 'sat_ramp'.")
         
         # Allocate input
-        u = np.zeros((len(sys.input_labels), len(t)))
+        u = np.zeros((sys.ninputs, len(t)))
 
         # Fill response channels
         for ch, a in zip(channel, amp):
-            idx = sys.input_labels.index(ch)
+            idx = self.input_channels[sys_type].index(ch)
             u[idx, :] = input_func(a)
         
         t_out, y_out = control.forced_response(sys, t, u)
+        if sys_type == "long":
+            y_out[1:, :] *= 180 / np.pi
+        else:
+            y_out *= 180 / np.pi
 
-        return t_out, y_out, u
+        return sys, t_out, y_out, u
     
-    def plot_response(self, sys, t, input_type=None, amp=1, t_end=10, channel=None, savefig=False, showfig=False):
-        t_out, y_out, u = self.get_response(sys, t, amp=amp, t_end=t_end, channel=channel, input_type=input_type)
+    def plot_response(self, t, sys_type=None, input_type=None, amp=1, t_end=10, channel=None, savefig=False, showfig=False):
+        sys, t_out, y_out, u = self.get_response(t, sys_type=sys_type, amp=amp, t_end=t_end, channel=channel, input_type=input_type)
+        sys.input_labels = [f'${var}$' for var in self.input_labels[sys_type]]
+        sys.output_labels = [f'${var}$' for var in self.output_labels[sys_type]]
 
         fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
+        fig.suptitle(f'System response for {sys_type} axis to a {amp}deg {input_type} in {channel}', fontsize=13)
         for i, a in enumerate(axes):
-            a.plot(t_out, y_out[i, :])
+            if i == 0:
+                a.plot(t_out, y_out[i, :] / self.aircraft.stab_der.FlightCondition['u_s'])
+            else:
+                a.plot(t_out, y_out[i, :])
             a.set_ylabel(sys.output_labels[i])
+            a.grid()
 
         if savefig:
-            figname = self.aircraft.model + f'{amp}_deg_step_response.png'
+            figname = self.aircraft.model + f'{amp}_deg_{input_type}_{channel}_response.png'
             figdir = os.path.join(os.getcwd(), 'aircraft', self.aircraft.model)
             os.makedirs(figdir, exist_ok=True)
             plt.savefig(os.path.join(figdir, figname))
@@ -92,34 +112,14 @@ class SAS:
         plt.close()
 
     def plot_cbc_response(self, input_type=None, amp=1, t_end=10, savefig=False, showfig=False):
-        if not self.std_matrices:
-            self.get_std_matrices()
-        for ax in ['long', 'latdir']:
-            A = self.std_matrices[ax]['A']
-            B = self.std_matrices[ax]['B']
-            m = A.shape[0]
-            n = B.shape[1] if len(B.shape) > 1 else 1
-            C = np.eye(A.shape[0])
-            D = np.zeros((m, n))
-            sys = control.ss(A, B, C, D)
-            sys.input_labels = [f'${var}$' for var in self.input_labels[ax]]
-            sys.output_labels = [f'${var}$' for var in self.output_labels[ax]]
-        
-            t = np.linspace(0, 700, 10000)
-            for ch in sys.input_labels:
-                self.plot_response(sys, t, input_type=input_type, amp=amp, t_end=t_end, channel=ch, savefig=savefig, showfig=showfig)
+        for ax in ['long', 'latdir']:        
+            t = np.linspace(0, 150, 10000)
+            for ch in self.input_channels[ax]:
+                self.plot_response(t, sys_type=ax, input_type=input_type, amp=amp, t_end=t_end, channel=ch, savefig=savefig, showfig=showfig)
     
     def plot_bode_nichols(self, savefig=False, showfig=False):
-        if not self.std_matrices:
-            self.get_std_matrices()
         for ax in ['long', 'latdir']:
-            A = self.std_matrices[ax]['A']
-            B = self.std_matrices[ax]['B']
-            m = A.shape[0]
-            n = B.shape[1] if len(B.shape) > 1 else 1
-            C = np.eye(A.shape[0])
-            D = np.zeros((m, n))
-            sys = control.ss(A, B, C, D)
+            sys = self.get_sys(ax)
             sys.input_labels = self.input_labels[ax]
             sys.output_labels = self.output_labels[ax]
             for i, inp in enumerate(sys.output_labels):
@@ -181,16 +181,8 @@ class SAS:
                     plt.close()
     
     def plot_bode(self, savefig=False, showfig=False):
-        if not self.std_matrices:
-            self.get_std_matrices()
         for ax in ['long', 'latdir']:
-            A = self.std_matrices[ax]['A']
-            B = self.std_matrices[ax]['B']
-            m = A.shape[0]
-            n = B.shape[1] if len(B.shape) > 1 else 1
-            C = np.eye(A.shape[0])
-            D = np.zeros((m, n))
-            sys = control.ss(A, B, C, D)
+            sys = self.get_sys(ax)
             sys.input_labels = self.input_labels[ax]
             sys.output_labels = self.output_labels[ax]
             for i, inp in enumerate(sys.output_labels):
@@ -211,16 +203,8 @@ class SAS:
                     plt.close()
     
     def plot_nichols(self, savefig=False, showfig=False):
-        if not self.std_matrices:
-            self.get_std_matrices()
         for ax in ['long', 'latdir']:
-            A = self.std_matrices[ax]['A']
-            B = self.std_matrices[ax]['B']
-            m = A.shape[0]
-            n = B.shape[1] if len(B.shape) > 1 else 1
-            C = np.eye(A.shape[0])
-            D = np.zeros((m, n))
-            sys = control.ss(A, B, C, D)
+            sys = self.get_sys(ax)
             sys.input_labels = self.input_labels[ax]
             sys.output_labels = self.output_labels[ax]
             for i, inp in enumerate(sys.output_labels):
@@ -257,6 +241,19 @@ class SAS:
             B = self.std_matrices[ax]['B']
             I = np.eye(A.shape[0])
             self.TF[ax] = Matrix(Matrix(s * I - A).inv().applyfunc(simplify) @ B).applyfunc(simplify)
+
+    def get_sys(self, axis):
+        if not self.std_matrices:
+            self.get_std_matrices()
+        A = self.std_matrices[axis]['A']
+        B = self.std_matrices[axis]['B']
+        m = A.shape[0]
+        n = B.shape[1] if len(B.shape) > 1 else 1
+        C = np.eye(A.shape[0])
+        D = np.zeros((m, n))
+        sys = control.ss(A, B, C, D)
+
+        return sys
  
     def get_std_matrices(self):
         self.get_all_matrices()
