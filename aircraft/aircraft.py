@@ -112,7 +112,7 @@ class StabilityDerivatives:
         u_s = self.FlightCondition['u_s']
         S = self.Aircraft.geom['S']
         CT_u = self.Aircraft.stab_coeffs['long']['CT_u']
-        CL_u = self.Aircraft.stab_coeffs['long']['CD_u']
+        CL_u = self.Aircraft.stab_coeffs['long']['CL_u']
         eps_s = self.Aircraft.geom['eps_s']
 
         CZ_s = - W * g * cos(theta_s) / (0.5 * rho * S * u_s ** 2)

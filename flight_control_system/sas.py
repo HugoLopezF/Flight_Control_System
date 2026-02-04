@@ -12,7 +12,8 @@ from utilities.constants import g
 from math import sin, cos, tan
 import os
 import numpy as np
-from sympy import Matrix, Symbol, Number, simplify
+import sympy as sp
+from sympy import simplify
 from sympy.physics.control.lti import TransferFunction
 import control
 import matplotlib.pyplot as plt
@@ -42,7 +43,7 @@ class SAS:
         }
 
     def round_expr(self, expr, num_digits):
-        return expr.xreplace({n : round(n, num_digits) for n in expr.atoms(Number)})
+        return expr.xreplace({n : round(n, num_digits) for n in expr.atoms(sp.Number)})
     
     def input_step(self, t, amp=1):
         return amp * np.ones_like(t)
@@ -94,10 +95,18 @@ class SAS:
 
         fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
         fig.suptitle(f'System response for {sys_type} axis to a {amp}deg {input_type} in {channel}', fontsize=13)
+        # for i, a in enumerate(axes):
+        #     a.plot(t_out, y_out[i, :])
+        #     a.set_ylabel(sys.output_labels[i])
+        #     a.grid()
         for i, a in enumerate(axes):
-            a.plot(t_out, y_out[i, :])
+            if i == 0 and sys_type == 'long':
+                a.plot(t_out, y_out[i, :] / self.aircraft.stab_der.FlightCondition['u_s'])
+            else:
+                a.plot(t_out, y_out[i, :])
             a.set_ylabel(sys.output_labels[i])
             a.grid()
+        axes[-1].set_xlabel('t [s]')
 
         if savefig:
             figname = self.aircraft.model + f'{amp}_deg_{input_type}_{channel}_response.png'
@@ -221,23 +230,55 @@ class SAS:
                         plt.show()
                     plt.close()
 
+    def transform_tf(self, tf):
+        s = sp.symbols('s')
+        num, den = sp.fraction(sp.simplify(tf))
+
+        zeros = sp.solve(num, s)
+        poles = sp.solve(den, s)
+
+        z1, z2 = zeros
+        tau1 = -1/z1
+        tau2 =  1/z2
+        K = num.subs(s, 0)
+
+        def omega_xi(p1, p2):
+            omega = sp.sqrt(p1*p2)
+            xi = -(p1+p2)/(2*omega)
+            return omega, xi
+
+        p1, p2, p3, p4 = poles
+        omega_sp, xi_sp = omega_xi(p1, p2)
+        omega_p,  xi_p  = omega_xi(p3, p4)
+
+        return {
+            "K": K,
+            "tau1": tau1,
+            "tau2": tau2,
+            "omega_sp": omega_sp,
+            "xi_sp": xi_sp,
+            "omega_p": omega_p,
+            "xi_p": xi_p
+        }
+
     def print_TF(self):
         self.get_TF()
         for ax in ['long', 'latdir']:
             TF = self.round_expr(self.TF[ax], 3)
             print(f'Printing {ax} transfer functions...\n')
             for row in range(0, self.TF[ax].shape[0]):
+                a = self.transform_tf(TF[row])
                 print('\t' + str(TF[row]) + '\n')
 
     def get_TF(self):
         if not self.std_matrices:
             self.get_std_matrices()
-        s = Symbol('s')
+        s = sp.Symbol('s')
         for ax in ['long', 'latdir']:
             A = self.std_matrices[ax]['A']
             B = self.std_matrices[ax]['B']
             I = np.eye(A.shape[0])
-            self.TF[ax] = Matrix(Matrix(s * I - A).inv().applyfunc(simplify) @ B).applyfunc(simplify)
+            self.TF[ax] = sp.Matrix(sp.Matrix(s * I - A).inv().applyfunc(simplify) @ B).applyfunc(simplify)
 
     def get_sys(self, axis):
         if not self.std_matrices:
