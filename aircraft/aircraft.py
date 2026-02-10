@@ -12,7 +12,7 @@ import os
 import json
 from math import sin, cos
 from utilities.constants import g 
-from utilities.unit_conversion import LengthUnit, WeightUnit, convert_length, convert_weight
+from utilities.unit_conversion import LengthUnit, WeightUnit, AngleUnit, convert_length, convert_weight, convert_angle
 
 class Aircraft:
     def __init__(self, model):
@@ -28,8 +28,6 @@ class Aircraft:
         self.mass_prop = aircraft_data['mass_prop']
         self.cond_coeffs = aircraft_data['cond_coeffs']
         self.stab_coeffs = aircraft_data['stab_coeffs']
-        # atm = isa.Atmosphere().calculate(h=aircraft_data['flight_cond']['h'])
-        # aircraft_data['flight_cond'].update({p: val for p, val in zip(['Zp', 'T', 'p', 'rho', 'a'], atm)})
         aircraft_data['flight_cond'].update({'rho': 2 * aircraft_data['flight_cond']['q'] / aircraft_data['flight_cond']['u_s'] ** 2})
         self.stab_der = StabilityDerivatives(self, aircraft_data['flight_cond'])
 
@@ -37,11 +35,13 @@ class Aircraft:
         aircraft_data['geom']['S'] = convert_length(convert_length(aircraft_data['geom']['S'], from_=LengthUnit.FEET), from_=LengthUnit.FEET)
         aircraft_data['geom']['c'] = convert_length(aircraft_data['geom']['c'], from_=LengthUnit.FEET)
         aircraft_data['geom']['b'] = convert_length(aircraft_data['geom']['b'], from_=LengthUnit.FEET)
+        aircraft_data['geom']['eps_s'] = convert_angle(aircraft_data['geom']['eps_s'], from_=AngleUnit.DEGREES)
 
         aircraft_data['flight_cond']['h'] = convert_length(aircraft_data['flight_cond']['h'], from_=LengthUnit.FEET)
         aircraft_data['flight_cond']['u_s'] = convert_length(aircraft_data['flight_cond']['u_s'], from_=LengthUnit.FEET)
         aircraft_data['flight_cond']['q'] = convert_weight(aircraft_data['flight_cond']['q'], from_=WeightUnit.POUNDS) * g
         aircraft_data['flight_cond']['q'] = 1 / convert_length(convert_length(1 / aircraft_data['flight_cond']['q'], from_=LengthUnit.FEET), from_=LengthUnit.FEET)
+        aircraft_data['flight_cond']['theta_s'] = convert_angle(aircraft_data['flight_cond']['theta_s'], from_=AngleUnit.DEGREES)
 
         aircraft_data['mass_prop']['W'] = convert_weight(aircraft_data['mass_prop']['W'], from_=WeightUnit.POUNDS)
         aircraft_data['mass_prop']['I_xx'] = convert_weight(aircraft_data['mass_prop']['I_xx'], from_=WeightUnit.SLUG)

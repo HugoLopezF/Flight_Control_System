@@ -95,15 +95,8 @@ class SAS:
 
         fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
         fig.suptitle(f'System response for {sys_type} axis to a {amp}deg {input_type} in {channel}', fontsize=13)
-        # for i, a in enumerate(axes):
-        #     a.plot(t_out, y_out[i, :])
-        #     a.set_ylabel(sys.output_labels[i])
-        #     a.grid()
         for i, a in enumerate(axes):
-            if i == 0 and sys_type == 'long':
-                a.plot(t_out, y_out[i, :] / self.aircraft.stab_der.FlightCondition['u_s'])
-            else:
-                a.plot(t_out, y_out[i, :])
+            a.plot(t_out, y_out[i, :])
             a.set_ylabel(sys.output_labels[i])
             a.grid()
         axes[-1].set_xlabel('t [s]')
