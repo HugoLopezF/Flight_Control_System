@@ -98,9 +98,9 @@ def convert_weight(value, from_ = WeightUnit.KILOGRAMS, to = WeightUnit.KILOGRAM
     :param value: Weight value to convert.
     :type value: float
     :param from_: Input weight unit.
-    :type from_: :class:`utilities.units.WeightUnit`, optional
+    :type from_: :class:`utilities.unit_conversion.WeightUnit`, optional
     :param to: Output weight unit.
-    :type to: :class:`utilities.units.WeightUnit`, optional
+    :type to: :class:`utilities.unit_conversion.WeightUnit`, optional
     :return: Converted value
     :rtype: float
     """
@@ -127,9 +127,9 @@ def convert_length(value, from_ = LengthUnit.METERS, to = LengthUnit.METERS):
     :param value: Length value to convert.
     :type value: float
     :param from_: Input length unit.
-    :type from_: :class:`utilities.units.LengthUnit`, optional
+    :type from_: :class:`utilities.unit_conversion.LengthUnit`, optional
     :param to: Output length unit.
-    :type to: :class:`utilities.units.LengthUnit`, optional
+    :type to: :class:`utilities.unit_conversion.LengthUnit`, optional
     :return: Converted value
     :rtype: float
     """
@@ -160,9 +160,9 @@ def convert_temperature(value, from_ = TemperatureUnit.KELVIN, to = TemperatureU
     :param value: Temperature value to convert.
     :type value: float
     :param from_: Input temperature unit.
-    :type from_: :class:`utilities.units.TemperatureUnit`, optional
+    :type from_: :class:`utilities.unit_conversion.TemperatureUnit`, optional
     :param to: Output temperature unit.
-    :type to: :class:`utilities.units.TemperatureUnit`, optional
+    :type to: :class:`utilities.unit_conversion.TemperatureUnit`, optional
     :return: Converted value
     :rtype: float
     """
@@ -189,9 +189,9 @@ def convert_speed(value, from_ = SpeedUnit.METER_PER_SECOND, to = SpeedUnit.METE
     :param value: Speed value to convert.
     :type value: float
     :param from_: Input speed unit.
-    :type from_: :class:`utilities.units.SpeedUnit`, optional
+    :type from_: :class:`utilities.unit_conversion.SpeedUnit`, optional
     :param to: Output speed unit.
-    :type to: :class:`utilities.units.SpeedUnit`, optional
+    :type to: :class:`utilities.unit_conversion.SpeedUnit`, optional
     :return: Converted value
     :rtype: float
     """
@@ -222,9 +222,9 @@ def convert_force(value, from_ = ForceUnit.NEWTONS, to = ForceUnit.NEWTONS):
     :param value: Force value to convert.
     :type value: float
     :param from_: Input force unit.
-    :type from_: :class:`utilities.units.ForceUnit`, optional
+    :type from_: :class:`utilities.unit_conversion.ForceUnit`, optional
     :param to: Output force unit.
-    :type to: :class:`utilities.units.ForceUnit`, optional
+    :type to: :class:`utilities.unit_conversion.ForceUnit`, optional
     :return: Converted value
     :rtype: float
     """
@@ -251,9 +251,9 @@ def convert_angle(value, from_ = AngleUnit.RADIANS, to = AngleUnit.RADIANS):
     :param value: Angle value to convert.
     :type value: float
     :param from_: Input angle unit.
-    :type from_: :class:`utilities.units.AngleUnit`, optional
+    :type from_: :class:`utilities.unit_conversion.AngleUnit`, optional
     :param to: Output angle unit.
-    :type to: :class:`utilities.units.AngleUnit`, optional
+    :type to: :class:`utilities.unit_conversion.AngleUnit`, optional
     :return: Converted value
     :rtype: float
     """

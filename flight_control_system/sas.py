@@ -41,20 +41,63 @@ class SAS:
             'long': [10e-3, 10e1],
             'latdir': [10e-6, 10e1]
         }
-
-    def round_expr(self, expr, num_digits):
-        return expr.xreplace({n : round(n, num_digits) for n in expr.atoms(sp.Number)})
     
-    def input_step(self, t, amp=1):
+    def input_step(self, t, amp=1) -> np.linspace:
+        """
+        Define step input signal.
+
+        :param t: Time vector.
+        :type t: np.linspace
+        :param amp: Step amplitude (nondimensional).
+        :type amp: float
+
+        :rtype: np.linspace
+        """
         return amp * np.ones_like(t)
 
-    def input_sat_ramp(self, t, amp=1, t_end=10):
+    def input_sat_ramp(self, t, amp=1, t_end=10) -> np.linspace:
+        """
+        Define saturated ramp input signal.
+
+        :param t: Time vector.
+        :type t: np.linspace
+        :param amp: Ramp amplitude (nondimensional).
+        :type amp: float
+        :param t_end: Time instant at which the ramp stops.
+        :type t_end: float
+
+        :rtype: np.linspace
+        """
+        # Define ramp slope
         slope = amp / t_end
         return np.minimum(slope * t, amp)
 
-    def get_response(self, t, sys_type=None, amp=1, t_end=10, channel=None, input_type=None):
+    def get_response(self, t, sys_type=None, amp=1, t_end=10, channel=None, input_type=None) -> tuple[control.statesp.StateSpace, np.ndarray, control.iosys.NamedSignal, np.ndarray]:
+        """
+        Obtain system response for selected input and axis.
+
+        :param t: Time vector.
+        :type t: np.linspace
+        :param sys_type: Dynamic system type. One of {'long', 'latdir'}
+        :type sys_type: string
+        :param amp: Input signal amplitude (nondimensional).
+        :type amp: float
+        :param t_end: Time instant at which the ramp stops (if ramp).
+        :type t_end: float
+        :param channel: Input channel for this sys_type. One of self.input_channels
+        :type channel: string
+        :param input_type: Input type. One of {'step', 'sat_ramp'}
+        :type input_type: string
+
+        :rtype: tuple[control.statesp.StateSpace,
+                numpy.ndarray,
+                control.iosys.NamedSignal,
+                numpy.ndarray]
+        """
+        # Get dynamic system from matrices
         sys = self.get_sys(sys_type)
 
+        # Check channel and convert input to rad
         if channel is None:
             raise ValueError("Please select an input channel.")
         else:
@@ -80,7 +123,9 @@ class SAS:
             idx = self.input_channels[sys_type].index(ch)
             u[idx, :] = input_func(a)
         
+        # Calculate response
         t_out, y_out = control.forced_response(sys, t, u)
+        # Convert response back to degrees except for u channel (m/(s*rad))
         if sys_type == "long":
             y_out[1:, :] *= 180 / np.pi
         else:
@@ -88,19 +133,39 @@ class SAS:
 
         return sys, t_out, y_out, u
     
-    def plot_response(self, t, sys_type=None, input_type=None, amp=1, t_end=10, channel=None, savefig=False, showfig=False):
+    def plot_response(self, t, sys_type=None, amp=1, t_end=10, channel=None, input_type=None, savefig=False, showfig=False) -> None:
+        """
+        Plot system response for selected input type and axis.
+
+        :param t: Time vector.
+        :type t: np.linspace
+        :param sys_type: Dynamic system type. One of {'long', 'latdir'}
+        :type sys_type: string
+        :param amp: Input signal amplitude (nondimensional).
+        :type amp: float
+        :param t_end: Time instant at which the ramp stops (if ramp).
+        :type t_end: float
+        :param channel: Input channel for this sys_type. One of self.input_channels
+        :type channel: string
+        :param input_type: Input type. One of {'step', 'sat_ramp'}
+        :type input_type: string
+        """
+        # Get system response
         sys, t_out, y_out, u = self.get_response(t, sys_type=sys_type, amp=amp, t_end=t_end, channel=channel, input_type=input_type)
+        # Reformat input/output labels for plotting
         sys.input_labels = [f'${var}$' for var in self.input_labels[sys_type]]
         sys.output_labels = [f'${var}$' for var in self.output_labels[sys_type]]
 
+        # Plot response
         fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
         fig.suptitle(f'System response for {sys_type} axis to a {amp}deg {input_type} in {channel}', fontsize=13)
-        for i, a in enumerate(axes):
-            a.plot(t_out, y_out[i, :])
-            a.set_ylabel(sys.output_labels[i])
-            a.grid()
+        for i, ax in enumerate(axes):
+            ax.plot(t_out, y_out[i, :])
+            ax.set_ylabel(sys.output_labels[i])
+            ax.grid()
         axes[-1].set_xlabel('t [s]')
 
+        # Save/show plot
         if savefig:
             figname = self.aircraft.model + f'{amp}_deg_{input_type}_{channel}_response.png'
             figdir = os.path.join(os.getcwd(), 'aircraft', self.aircraft.model)
@@ -110,17 +175,44 @@ class SAS:
             plt.show()
         plt.close()
 
-    def plot_cbc_response(self, input_type=None, amp=1, t_end=10, savefig=False, showfig=False):
+    def plot_cbc_response(self, t, amp=1, t_end=10, input_type=None, savefig=False, showfig=False) -> None:
+        """
+        Plot system response for selected input type for all axes.
+
+        :param t: Time vector.
+        :type t: np.linspace
+        :param amp: Input signal amplitude (nondimensional).
+        :type amp: float
+        :param t_end: Time instant at which the ramp stops (if ramp).
+        :type t_end: float
+        :param input_type: Input type. One of {'step', 'sat_ramp'}
+        :type input_type: string
+        :param savefig: Option to save figure.
+        :type savefig: string
+        :param showfig: Option to show figure.
+        :type showfig: string
+        """
+        # Loop through all axes and input channels
         for ax in ['long', 'latdir']:        
-            t = np.linspace(0, 150, 10000)
             for ch in self.input_channels[ax]:
                 self.plot_response(t, sys_type=ax, input_type=input_type, amp=amp, t_end=t_end, channel=ch, savefig=savefig, showfig=showfig)
     
-    def plot_bode_nichols(self, savefig=False, showfig=False):
+    def plot_bode_nichols(self, savefig=False, showfig=False) -> None:
+        """
+        Plot system's Bode and Nichols plots for all axes.
+
+        :param savefig: Option to save figure.
+        :type savefig: string
+        :param showfig: Option to show figure.
+        :type showfig: string
+        """
+        # Loop through all axes and output channels
         for ax in ['long', 'latdir']:
+            # Define dynamic system
             sys = self.get_sys(ax)
             sys.input_labels = self.input_labels[ax]
             sys.output_labels = self.output_labels[ax]
+            # Loop through every input and output channel
             for i, inp in enumerate(sys.output_labels):
                 for j, out in enumerate(sys.input_labels):
                     # Figure layout
@@ -137,14 +229,15 @@ class SAS:
                     # Nichols plot
                     control.nichols_plot(sys[i, j], omega=self.bode_lims[ax], ax=ax_nichols)
                     ax_nichols.set_ylim(ax_mag.get_ylim())
+                    # Replot to convert phase (y axis) to positive if necessary
                     if ax_phase.get_ylim()[1] < -170:
                         plt.close()
                         fig = plt.figure(figsize=(14, 8))
                         gs = gridspec.GridSpec(2, 2)
-
                         ax_mag = fig.add_subplot(gs[0, 0])
                         ax_phase = fig.add_subplot(gs[1, 0], sharex=ax_mag)
                         ax_nichols = fig.add_subplot(gs[:, 1])
+
                         mag, phase, omega = control.frequency_response(sys[i, j], omega_limits=self.bode_lims[ax])
 
                         ax_mag.semilogx(omega, 20 * np.log10(mag))
@@ -164,10 +257,11 @@ class SAS:
                         ax_nichols.set_xlim((min_phase, max_phase))
                     else:
                         ax_nichols.set_xlim(ax_phase.get_ylim())
-                    
                     ax_mag.set_title("Bode")
                     ax_nichols.set_title("Nichols")
                     plt.tight_layout()
+
+                    # Save/show figure
                     if savefig:
                         inp_var = inp.replace('\\Delta', '').replace('\\', '').replace(' ', '')
                         out_var = out.replace('\\Delta', '').replace('\\', '')
@@ -179,17 +273,31 @@ class SAS:
                         plt.show()
                     plt.close()
     
-    def plot_bode(self, savefig=False, showfig=False):
+    def plot_bode(self, savefig=False, showfig=False) -> None:
+        """
+        Plot system's Bode plots for all axes.
+
+        :param savefig: Option to save figure.
+        :type savefig: string
+        :param showfig: Option to show figure.
+        :type showfig: string
+        """
+        # Loop through all axes and output channels
         for ax in ['long', 'latdir']:
+            # Define dynamic system
             sys = self.get_sys(ax)
             sys.input_labels = self.input_labels[ax]
             sys.output_labels = self.output_labels[ax]
+            # Loop through every input and output channel
             for i, inp in enumerate(sys.output_labels):
                 for j, out in enumerate(sys.input_labels):
+                    # Figure layout
                     plt.figure()
                     control.bode_plot(sys[i, j], omega_limits=self.bode_lims[ax], dB=True)
                     plt.suptitle(fr'Bode diagram of $[G(i\omega)]_{{{inp+out}}} = \frac{{{inp}}}{{{out}}}$')
                     plt.tight_layout()
+
+                    # Save/show figure
                     if savefig:
                         inp_var = inp.replace('\\Delta', '').replace('\\', '').replace(' ', '')
                         out_var = out.replace('\\Delta', '').replace('\\', '')
@@ -201,17 +309,31 @@ class SAS:
                         plt.show()
                     plt.close()
     
-    def plot_nichols(self, savefig=False, showfig=False):
+    def plot_nichols(self, savefig=False, showfig=False) -> None:
+        """
+        Plot system's Nichols plots for all axes.
+
+        :param savefig: Option to save figure.
+        :type savefig: string
+        :param showfig: Option to show figure.
+        :type showfig: string
+        """
+        # Loop through all axes and output channels
         for ax in ['long', 'latdir']:
+            # Define dynamic system
             sys = self.get_sys(ax)
             sys.input_labels = self.input_labels[ax]
             sys.output_labels = self.output_labels[ax]
+             # Loop through every input and output channel
             for i, inp in enumerate(sys.output_labels):
                 for j, out in enumerate(sys.input_labels):
+                    # Figure layout
                     plt.figure()
                     control.nichols_plot(sys[i, j], omega=self.bode_lims[ax])
                     plt.suptitle(fr'Nichols diagram of $[G(i\omega)]_{{{inp+out}}} = \frac{{{inp}}}{{{out}}}$')
                     plt.tight_layout()
+
+                    # Save/show figure
                     if savefig:
                         inp_var = inp.replace('\\Delta', '').replace('\\', '').replace(' ', '')
                         out_var = out.replace('\\Delta', '').replace('\\', '')
@@ -223,41 +345,9 @@ class SAS:
                         plt.show()
                     plt.close()
 
-    def transform_tf(self, tf):
-        s = sp.symbols('s')
-        num, den = sp.fraction(sp.simplify(tf))
-
-        zeros = sp.solve(num, s)
-        poles = sp.solve(den, s)
-
-        z1, z2 = zeros
-        tau1 = -1/z1
-        tau2 =  1/z2
-        K = num.subs(s, 0)
-
-        def omega_xi(p1, p2):
-            omega = sp.sqrt(p1*p2)
-            xi = -(p1+p2)/(2*omega)
-            return omega, xi
-
-        p1, p2, p3, p4 = poles
-        omega_sp, xi_sp = omega_xi(p1, p2)
-        omega_p,  xi_p  = omega_xi(p3, p4)
-
-        return {
-            "K": K,
-            "tau1": tau1,
-            "tau2": tau2,
-            "omega_sp": omega_sp,
-            "xi_sp": xi_sp,
-            "omega_p": omega_p,
-            "xi_p": xi_p
-        }
-
     def print_TF(self):
         self.get_TF()
         for ax in ['long', 'latdir']:
-            TF = self.round_expr(self.TF[ax], 3)
             print(f'Printing {ax} transfer functions...\n')
             for row in range(0, self.TF[ax].shape[0]):
                 a = self.transform_tf(TF[row])
@@ -273,7 +363,16 @@ class SAS:
             I = np.eye(A.shape[0])
             self.TF[ax] = sp.Matrix(sp.Matrix(s * I - A).inv().applyfunc(simplify) @ B).applyfunc(simplify)
 
-    def get_sys(self, axis):
+    def get_sys(self, axis) -> control.statesp.StateSpace:
+        """
+        Calculate dynamic space state system.
+
+        :param axis: Axis to obtain matrices for. One of {'long', 'latdir'}
+        :type axis: string
+
+        :rtype: control.statesp.StateSpace
+        """
+        # Calculate system matrices
         if not self.std_matrices:
             self.get_std_matrices()
         A = self.std_matrices[axis]['A']
@@ -286,7 +385,11 @@ class SAS:
 
         return sys
  
-    def get_std_matrices(self):
+    def get_std_matrices(self) -> None:
+        """
+        Calculate standard form space state matrices.
+
+        """
         self.get_all_matrices()
         for ax in ['long', 'latdir']:
             self.std_matrices[ax] = {
@@ -294,7 +397,11 @@ class SAS:
                 'B': np.linalg.solve(self.matrices[ax]['E'], self.matrices[ax]['B_prime'])
             }
 
-    def get_all_matrices(self):
+    def get_all_matrices(self) -> None:
+        """
+        Calculate and save all space state matrices.
+
+        """
         E, A, B = self.get_long_matrices()
         self.matrices['long'] = {
             'E': E, 
@@ -309,7 +416,11 @@ class SAS:
             'B_prime': B
         }
 
-    def get_long_matrices(self):
+    def get_long_matrices(self) -> tuple[np.array, np.array, np.array]:
+        """
+        Calculate and longitudinal space state matrices.
+
+        """
         W = self.aircraft.mass_prop['W']
         u_s = self.aircraft.stab_der.FlightCondition['u_s']
         theta_s = self.aircraft.stab_der.FlightCondition['theta_s']
@@ -344,7 +455,11 @@ class SAS:
 
         return E, A_prime, B_prime
     
-    def get_latdir_matrices(self):
+    def get_latdir_matrices(self) -> tuple[np.array, np.array, np.array]:
+        """
+        Calculate and lateral-directional space state matrices.
+
+        """
         W = self.aircraft.mass_prop['W']
         u_s = self.aircraft.stab_der.FlightCondition['u_s']
         theta_s = self.aircraft.stab_der.FlightCondition['theta_s']
