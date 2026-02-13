@@ -7,14 +7,11 @@ Stability augmentation system definition, calculations and plots.
 """
 
 
-from aircraft import aircraft
 from utilities.constants import g
 from math import sin, cos, tan
 import os
 import numpy as np
 import sympy as sp
-from sympy import simplify
-from sympy.physics.control.lti import TransferFunction
 import control
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -361,7 +358,7 @@ class SAS:
             A = self.std_matrices[ax]['A']
             B = self.std_matrices[ax]['B']
             I = np.eye(A.shape[0])
-            self.TF[ax] = sp.Matrix(sp.Matrix(s * I - A).inv().applyfunc(simplify) @ B).applyfunc(simplify)
+            self.TF[ax] = sp.Matrix(sp.Matrix(s * I - A).inv().applyfunc(sp.simplify) @ B).applyfunc(sp.simplify)
 
     def get_sys(self, axis) -> control.statesp.StateSpace:
         """
