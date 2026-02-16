@@ -6,11 +6,11 @@ def main():
     # Initialize aircraft to study
     myaircraft = Aircraft("Learjet_24")
 
-    # Calculate stability derivatives
-    myaircraft.stab_der.calculate_all()
-
     # Initialize SAS
     mySAS = SAS(myaircraft)
+
+    # Get matrices
+    sys = mySAS.get_sys('long')
 
     # Plot step response applied
     t = np.linspace(0, 500, 10000)

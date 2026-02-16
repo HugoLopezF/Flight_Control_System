@@ -418,23 +418,23 @@ class SAS:
         Calculate and longitudinal space state matrices.
 
         """
-        W = self.aircraft.mass_prop['W']
-        u_s = self.aircraft.stab_der.FlightCondition['u_s']
-        theta_s = self.aircraft.stab_der.FlightCondition['theta_s']
-        Zw_dot = self.aircraft.stab_der.Zw_dot
-        Zq = self.aircraft.stab_der.Zq
-        Mw_dot = self.aircraft.stab_der.Mw_dot
-        Mq = self.aircraft.stab_der.Mq
-        I_yy = self.aircraft.mass_prop['I_yy']
-        Xu = self.aircraft.stab_der.Xu
-        Xw = self.aircraft.stab_der.Xw
-        Zu = self.aircraft.stab_der.Zu
-        Zw = self.aircraft.stab_der.Zw
-        Mu = self.aircraft.stab_der.Mu
-        Mw = self.aircraft.stab_der.Mw
-        Xdelta_e = self.aircraft.stab_der.Xdelta_e
-        Zdelta_e = self.aircraft.stab_der.Zdelta_e
-        Mdelta_e = self.aircraft.stab_der.Mdelta_e
+        W = self.aircraft.mass_prop.W
+        u_s = self.aircraft.flight_cond.u_s
+        theta_s = self.aircraft.flight_cond.theta_s
+        Zw_dot = self.aircraft.stab_der.long.Zw_dot
+        Zq = self.aircraft.stab_der.long.Zq
+        Mw_dot = self.aircraft.stab_der.long.Mw_dot
+        Mq = self.aircraft.stab_der.long.Mq
+        I_yy = self.aircraft.mass_prop.I_yy
+        Xu = self.aircraft.stab_der.long.Xu
+        Xw = self.aircraft.stab_der.long.Xw
+        Zu = self.aircraft.stab_der.long.Zu
+        Zw = self.aircraft.stab_der.long.Zw
+        Mu = self.aircraft.stab_der.long.Mu
+        Mw = self.aircraft.stab_der.long.Mw
+        Xdelta_e = self.aircraft.stab_der.long.Xdelta_e
+        Zdelta_e = self.aircraft.stab_der.long.Zdelta_e
+        Mdelta_e = self.aircraft.stab_der.long.Mdelta_e
 
         E = np.array([     
                 [W, 0, 0, 0],
@@ -457,26 +457,26 @@ class SAS:
         Calculate and lateral-directional space state matrices.
 
         """
-        W = self.aircraft.mass_prop['W']
-        u_s = self.aircraft.stab_der.FlightCondition['u_s']
-        theta_s = self.aircraft.stab_der.FlightCondition['theta_s']
-        I_xx = self.aircraft.mass_prop['I_xx']
-        I_zz = self.aircraft.mass_prop['I_zz']
-        I_xz = self.aircraft.mass_prop['I_xz']
-        Yv = self.aircraft.stab_der.Yv
-        Yp = self.aircraft.stab_der.Yp
-        Yr = self.aircraft.stab_der.Yr
-        Lv = self.aircraft.stab_der.Lv
-        Lp = self.aircraft.stab_der.Lp
-        Lr = self.aircraft.stab_der.Lr
-        Nv = self.aircraft.stab_der.Nv
-        Np = self.aircraft.stab_der.Np
-        Nr = self.aircraft.stab_der.Nr
-        Ydelta_r = self.aircraft.stab_der.Ydelta_r
-        Ldelta_a = self.aircraft.stab_der.Ldelta_a
-        Ldelta_r = self.aircraft.stab_der.Ldelta_r
-        Ndelta_a = self.aircraft.stab_der.Ndelta_a
-        Ndelta_r = self.aircraft.stab_der.Ndelta_r
+        W = self.aircraft.mass_prop.W
+        u_s = self.aircraft.flight_cond.u_s
+        theta_s = self.aircraft.flight_cond.theta_s
+        I_xx = self.aircraft.mass_prop.I_xx
+        I_zz = self.aircraft.mass_prop.I_zz
+        I_xz = self.aircraft.mass_prop.I_xz
+        Yv = self.aircraft.stab_der.latdir.Yv
+        Yp = self.aircraft.stab_der.latdir.Yp
+        Yr = self.aircraft.stab_der.latdir.Yr
+        Lv = self.aircraft.stab_der.latdir.Lv
+        Lp = self.aircraft.stab_der.latdir.Lp
+        Lr = self.aircraft.stab_der.latdir.Lr
+        Nv = self.aircraft.stab_der.latdir.Nv
+        Np = self.aircraft.stab_der.latdir.Np
+        Nr = self.aircraft.stab_der.latdir.Nr
+        Ydelta_r = self.aircraft.stab_der.latdir.Ydelta_r
+        Ldelta_a = self.aircraft.stab_der.latdir.Ldelta_a
+        Ldelta_r = self.aircraft.stab_der.latdir.Ldelta_r
+        Ndelta_a = self.aircraft.stab_der.latdir.Ndelta_a
+        Ndelta_r = self.aircraft.stab_der.latdir.Ndelta_r
 
         E = np.array([
             [u_s * W, 0, 0, 0],
