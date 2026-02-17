@@ -11,7 +11,8 @@ from pathlib import Path
 import json
 from utilities.constants import g 
 from utilities.unit_conversion import LengthUnit, WeightUnit, AngleUnit, convert_length, convert_weight, convert_angle
-from .data_classes import Geometry, MassProperties, FlightCondition, ConditionCoefficients, LongitudinalCoefficients, LateralDirectionalCoefficients, StabilityCoefficients, LinearizationParameters, StabilityDerivatives
+from .data_classes import (Geometry, MassProperties, FlightCondition, ConditionCoefficients, LongitudinalCoefficients, 
+                           LateralDirectionalCoefficients, StabilityCoefficients, LinearizationParameters, StabilityDerivatives)
 from .stability_derivatives import StabilityDerivativesCalculator
 
 
