@@ -6,19 +6,16 @@ Stability augmentation system definition, calculations and plots.
 
 """
 
-
 from utilities.constants import g
-from math import sin, cos, tan
 import os
 import numpy as np
-import sympy as sp
 import control
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 class SAS:
-    def __init__(self, Aircraft):
-        self.aircraft = Aircraft
+    def __init__(self, aircraft):
+        self.aircraft = aircraft
         self.matrices = {}
         self.std_matrices = {}
         self.TF = {}
@@ -341,160 +338,3 @@ class SAS:
                     if showfig:
                         plt.show()
                     plt.close()
-
-    def print_TF(self):
-        self.get_TF()
-        for ax in ['long', 'latdir']:
-            print(f'Printing {ax} transfer functions...\n')
-            for row in range(0, self.TF[ax].shape[0]):
-                a = self.transform_tf(TF[row])
-                print('\t' + str(TF[row]) + '\n')
-
-    def get_TF(self):
-        if not self.std_matrices:
-            self.get_std_matrices()
-        s = sp.Symbol('s')
-        for ax in ['long', 'latdir']:
-            A = self.std_matrices[ax]['A']
-            B = self.std_matrices[ax]['B']
-            I = np.eye(A.shape[0])
-            self.TF[ax] = sp.Matrix(sp.Matrix(s * I - A).inv().applyfunc(sp.simplify) @ B).applyfunc(sp.simplify)
-
-    def get_sys(self, axis) -> control.statesp.StateSpace:
-        """
-        Calculate dynamic space state system.
-
-        :param axis: Axis to obtain matrices for. One of {'long', 'latdir'}
-        :type axis: string
-
-        :rtype: control.statesp.StateSpace
-        """
-        # Calculate system matrices
-        if not self.std_matrices:
-            self.get_std_matrices()
-        A = self.std_matrices[axis]['A']
-        B = self.std_matrices[axis]['B']
-        m = A.shape[0]
-        n = B.shape[1] if len(B.shape) > 1 else 1
-        C = np.eye(A.shape[0])
-        D = np.zeros((m, n))
-        sys = control.ss(A, B, C, D)
-
-        return sys
- 
-    def get_std_matrices(self) -> None:
-        """
-        Calculate standard form space state matrices.
-
-        """
-        self.get_all_matrices()
-        for ax in ['long', 'latdir']:
-            self.std_matrices[ax] = {
-                'A': np.linalg.solve(self.matrices[ax]['E'], self.matrices[ax]['A_prime']),
-                'B': np.linalg.solve(self.matrices[ax]['E'], self.matrices[ax]['B_prime'])
-            }
-
-    def get_all_matrices(self) -> None:
-        """
-        Calculate and save all space state matrices.
-
-        """
-        E, A, B = self.get_long_matrices()
-        self.matrices['long'] = {
-            'E': E, 
-            'A_prime': A,
-            'B_prime': B
-        }
-
-        E, A, B = self.get_latdir_matrices()
-        self.matrices['latdir'] = {
-            'E': E, 
-            'A_prime': A, 
-            'B_prime': B
-        }
-
-    def get_long_matrices(self) -> tuple[np.array, np.array, np.array]:
-        """
-        Calculate and longitudinal space state matrices.
-
-        """
-        W = self.aircraft.mass_prop.W
-        u_s = self.aircraft.flight_cond.u_s
-        theta_s = self.aircraft.flight_cond.theta_s
-        Zw_dot = self.aircraft.stab_der.long.Zw_dot
-        Zq = self.aircraft.stab_der.long.Zq
-        Mw_dot = self.aircraft.stab_der.long.Mw_dot
-        Mq = self.aircraft.stab_der.long.Mq
-        I_yy = self.aircraft.mass_prop.I_yy
-        Xu = self.aircraft.stab_der.long.Xu
-        Xw = self.aircraft.stab_der.long.Xw
-        Zu = self.aircraft.stab_der.long.Zu
-        Zw = self.aircraft.stab_der.long.Zw
-        Mu = self.aircraft.stab_der.long.Mu
-        Mw = self.aircraft.stab_der.long.Mw
-        Xdelta_e = self.aircraft.stab_der.long.Xdelta_e
-        Zdelta_e = self.aircraft.stab_der.long.Zdelta_e
-        Mdelta_e = self.aircraft.stab_der.long.Mdelta_e
-
-        E = np.array([     
-                [W, 0, 0, 0],
-                [0, u_s * (W - Zw_dot), 0, 0],
-                [0, -u_s * Mw_dot, 0, I_yy],
-                [0, 0, 1, 0]
-        ])
-        A_prime = np.array([
-            [Xu, u_s * Xw, -W * g * cos(theta_s), 0],
-            [Zu, u_s * Zw, -W * g * sin(theta_s), W * u_s + Zq],
-            [Mu, u_s * Mw, 0, Mq],
-            [0, 0, 0, 1]
-        ])
-        B_prime = np.array([Xdelta_e, Zdelta_e, Mdelta_e, 0])
-
-        return E, A_prime, B_prime
-    
-    def get_latdir_matrices(self) -> tuple[np.array, np.array, np.array]:
-        """
-        Calculate and lateral-directional space state matrices.
-
-        """
-        W = self.aircraft.mass_prop.W
-        u_s = self.aircraft.flight_cond.u_s
-        theta_s = self.aircraft.flight_cond.theta_s
-        I_xx = self.aircraft.mass_prop.I_xx
-        I_zz = self.aircraft.mass_prop.I_zz
-        I_xz = self.aircraft.mass_prop.I_xz
-        Yv = self.aircraft.stab_der.latdir.Yv
-        Yp = self.aircraft.stab_der.latdir.Yp
-        Yr = self.aircraft.stab_der.latdir.Yr
-        Lv = self.aircraft.stab_der.latdir.Lv
-        Lp = self.aircraft.stab_der.latdir.Lp
-        Lr = self.aircraft.stab_der.latdir.Lr
-        Nv = self.aircraft.stab_der.latdir.Nv
-        Np = self.aircraft.stab_der.latdir.Np
-        Nr = self.aircraft.stab_der.latdir.Nr
-        Ydelta_r = self.aircraft.stab_der.latdir.Ydelta_r
-        Ldelta_a = self.aircraft.stab_der.latdir.Ldelta_a
-        Ldelta_r = self.aircraft.stab_der.latdir.Ldelta_r
-        Ndelta_a = self.aircraft.stab_der.latdir.Ndelta_a
-        Ndelta_r = self.aircraft.stab_der.latdir.Ndelta_r
-
-        E = np.array([
-            [u_s * W, 0, 0, 0],
-            [0, I_xx, -I_xz, 0],
-            [0, -I_xz, I_zz, 0],
-            [0, 0, 0, 1]
-        ])
-        A_prime = np.array([
-            [u_s * Yv, Yp, Yr - W * u_s, W * g * cos(theta_s)],
-            [u_s * Lv, Lp, Lr, 0],
-            [u_s * Nv, Np, Nr, 0],
-            [0, 1, tan(theta_s), 0]
-        ])
-        B_prime = np.array([
-            [0, Ydelta_r],
-            [Ldelta_a, Ldelta_r],
-            [Ndelta_a, Ndelta_r],
-            [0, 0]
-        ])
-        
-        return E, A_prime, B_prime

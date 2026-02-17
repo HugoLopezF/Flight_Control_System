@@ -1,4 +1,4 @@
-from aircraft.aircraft import Aircraft
+from flight_dynamics.aircraft import Aircraft
 from flight_control_system.sas import SAS
 import numpy as np
 
