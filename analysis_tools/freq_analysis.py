@@ -1,336 +1,220 @@
-import os
 from pathlib import Path
 import numpy as np
 import control
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from flight_control_system.state_space import LinearizedSystem
+from flight_control_system.axis_metadata import AXIS_LABELS
 from flight_control_system.types import Axis
-
 
 class FrequencyAnalyzer:
     AXES = (Axis.LONG, Axis.LATDIR)
 
-    def __init__(self, lin_sys, fig_root: str | Path = "flight_dynamics"):
+    def __init__(self, lin_sys: LinearizedSystem, fig_root: str | Path = "flight_dynamics"):
         self.sys = lin_sys
         self.fig_root = Path(fig_root)
-
-        self.input_channels = {
-            Axis.LONG: ['elevator'],
-            Axis.LATDIR: ['ailerons', 'rudder']
-        }
-        self.output_labels = {
-            Axis.LONG: [r'\Delta u', r'\Delta\alpha', r'\Delta\theta', r'\Delta q'],
-            Axis.LATDIR: [r'\Delta\beta', r'\Delta p', r'\Delta r', r'\Delta\phi']
-        }
-        self.input_labels = {
-            Axis.LONG: [r'\Delta\delta_e'],
-            Axis.LATDIR: [r'\Delta\delta_a', r'\Delta\delta_r']
-        }
+        self.labels = AXIS_LABELS
         self.bode_lims = {
-            Axis.LONG: [10e-3, 10e1],
-            Axis.LATDIR: [10e-6, 10e1]
+            Axis.LONG: [1e-2, 1e2],
+            Axis.LATDIR: [1e-6, 1e2],
+        }
+
+    def _labels(self, axis: Axis):
+        return self.labels[axis]
+    
+    @staticmethod
+    def _clean_label(label: str) -> str:
+        return label.replace("\\Delta", "").replace("\\", "").replace(" ", "")
+    
+    def _figure_dir(self) -> Path:
+        figdir = self.fig_root / self.sys.aircraft.model
+        figdir.mkdir(parents=True, exist_ok=True)
+        return figdir
+    
+    def channel_metrics(self, axis: Axis, i: int, j: int) -> dict:
+        """
+        Return frequency-domain metrics for channel y_i / u_j.
+        """
+        gij = self.sys.get_sys(axis)[i, j]
+
+        poles = np.asarray(control.poles(gij), dtype=complex)
+        zeros = np.asarray(control.zeros(gij), dtype=complex)
+
+        gm, pm, wgc, wpc = control.margin(gij)
+
+        try:
+            dc_gain = float(np.real_if_close(control.dcgain(gij)))
+        except Exception:
+            dc_gain = np.nan
+
+        try:
+            bandwidth = float(np.real_if_close(control.bandwidth(gij)))
+        except Exception:
+            bandwidth = np.nan
+
+        return {
+            "axis": axis,
+            "output_index": i,
+            "input_index": j,
+            "poles": poles,
+            "zeros": zeros,
+            "gain_margin": gm,
+            "phase_margin_deg": pm,
+            "gain_crossover_rad_s": wgc,
+            "phase_crossover_rad_s": wpc,
+            "dc_gain": dc_gain,
+            "bandwidth_rad_s": bandwidth,
         }
     
-
-    def input_step(self, t, amp=1) -> np.linspace:
-        """
-        Define step input signal.
-
-        :param t: Time vector.
-        :type t: np.linspace
-        :param amp: Step amplitude (nondimensional).
-        :type amp: float
-
-        :rtype: np.linspace
-        """
-        return amp * np.ones_like(t)
-
-    def input_sat_ramp(self, t, amp=1, t_end=10) -> np.linspace:
-        """
-        Define saturated ramp input signal.
-
-        :param t: Time vector.
-        :type t: np.linspace
-        :param amp: Ramp amplitude (nondimensional).
-        :type amp: float
-        :param t_end: Time instant at which the ramp stops.
-        :type t_end: float
-
-        :rtype: np.linspace
-        """
-        # Define ramp slope
-        slope = amp / t_end
-        return np.minimum(slope * t, amp)
-
-    def get_response(self, t, axis: Axis, amp=1, t_end=10, channel=None, input_type=None) -> tuple[control.statesp.StateSpace, np.ndarray, control.iosys.NamedSignal, np.ndarray]:
-        """
-        Obtain system response for selected input and axis.
-
-        :param t: Time vector.
-        :type t: np.linspace
-        :param axis: Dynamic system type.
-        :type axis: string
-        :param amp: Input signal amplitude (nondimensional).
-        :type amp: float
-        :param t_end: Time instant at which the ramp stops (if ramp).
-        :type t_end: float
-        :param channel: Input channel for this axis. One of self.input_channels
-        :type channel: string
-        :param input_type: Input type. One of {'step', 'sat_ramp'}
-        :type input_type: string
-
-        :rtype: tuple[control.statesp.StateSpace,
-                numpy.ndarray,
-                control.iosys.NamedSignal,
-                numpy.ndarray]
-        """
-        # Get dynamic system from matrices
-        sys = self.sys.get_sys(axis)
-
-        # Check channel and convert input to rad
-        if channel is None:
-            raise ValueError("Please select an input channel.")
-        else:
-            if channel not in self.input_channels[axis]:
-                raise ValueError("Please select a valid input channel.")
-            else:
-                channel = (channel,)
-                amp = (amp * np.pi / 180,)
-
-        # Select input type
-        if input_type == "step":
-            input_func = lambda amp: self.input_step(t, amp)
-        elif input_type == "sat_ramp":
-            input_func = lambda amp: self.input_sat_ramp(t, amp, t_end)
-        else:
-            raise ValueError("No input type selected. Please select 'step', or 'sat_ramp'.")
-        
-        # Allocate input
-        u = np.zeros((sys.ninputs, len(t)))
-
-        # Fill response channels
-        for ch, a in zip(channel, amp):
-            idx = self.input_channels[axis].index(ch)
-            u[idx, :] = input_func(a)
-        
-        # Calculate response
-        t_out, y_out = control.forced_response(sys, t, u)
-        # Convert response back to degrees except for u channel (m/(s*rad))
-        if axis is Axis.LONG:
-            y_out[1:, :] *= 180 / np.pi
-        else:
-            y_out *= 180 / np.pi
-
-        return sys, t_out, y_out, u
-    
-    def plot_response(self, t, axis: Axis, amp=1, t_end=10, channel=None, input_type=None, savefig=False, showfig=False) -> None:
-        """
-        Plot system response for selected input type and axis.
-
-        :param t: Time vector.
-        :type t: np.linspace
-        :param axis: Dynamic system type
-        :type axis: string
-        :param amp: Input signal amplitude (nondimensional).
-        :type amp: float
-        :param t_end: Time instant at which the ramp stops (if ramp).
-        :type t_end: float
-        :param channel: Input channel for this axis. One of self.input_channels
-        :type channel: string
-        :param input_type: Input type. One of {'step', 'sat_ramp'}
-        :type input_type: string
-        """
-        # Get system response
-        sys, t_out, y_out, u = self.get_response(t, axis=axis, amp=amp, t_end=t_end, channel=channel, input_type=input_type)
-        # Reformat input/output labels for plotting
-        sys.input_labels = [f'${var}$' for var in self.input_labels[axis]]
-        sys.output_labels = [f'${var}$' for var in self.output_labels[axis]]
-
-        # Plot response
-        fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
-        fig.suptitle(f'System response for {axis} axis to a {amp}deg {input_type} in {channel}', fontsize=13)
-        for i, ax in enumerate(axes):
-            ax.plot(t_out, y_out[i, :])
-            ax.set_ylabel(sys.output_labels[i])
-            ax.grid()
-        axes[-1].set_xlabel('t [s]')
-
-        # Save/show plot
-        if savefig:
-            figname = self.sys.aircraft.model + f'{amp}_deg_{input_type}_{channel}_response.png'
-            figdir = os.path.join(os.getcwd(), 'aircraft', self.sys.aircraft.model)
-            os.makedirs(figdir, exist_ok=True)
-            plt.savefig(os.path.join(figdir, figname))
-        if showfig:
-            plt.show()
-        plt.close()
-
-    def plot_cbc_response(self, t, amp=1, t_end=10, input_type=None, savefig=False, showfig=False) -> None:
-        """
-        Plot system response for selected input type for all axes.
-
-        :param t: Time vector.
-        :type t: np.linspace
-        :param amp: Input signal amplitude (nondimensional).
-        :type amp: float
-        :param t_end: Time instant at which the ramp stops (if ramp).
-        :type t_end: float
-        :param input_type: Input type. One of {'step', 'sat_ramp'}
-        :type input_type: string
-        :param savefig: Option to save figure.
-        :type savefig: string
-        :param showfig: Option to show figure.
-        :type showfig: string
-        """
-        # Loop through all axes and input channels
-        for axis in self.AXES:        
-            for ch in self.input_channels[axis]:
-                self.plot_response(t, axis=axis, input_type=input_type, amp=amp, t_end=t_end, channel=ch, savefig=savefig, showfig=showfig)
-    
-    def plot_bode_nichols(self, savefig=False, showfig=False) -> None:
+    def plot_all(self, savefig: bool = False, showfig: bool = False) -> None:
         """
         Plot system's Bode and Nichols plots for all axes.
 
         :param savefig: Option to save figure.
-        :type savefig: string
+        :type savefig: bool
         :param showfig: Option to show figure.
-        :type showfig: string
+        :type showfig: bool
         """
-        # Loop through all axes and output channels
         for axis in self.AXES:
-            # Define dynamic system
-            sys = self.sys.get_sys(axis)
-            sys.input_labels = self.input_labels[axis]
-            sys.output_labels = self.output_labels[axis]
-            # Loop through every input and output channel
-            for i, inp in enumerate(sys.output_labels):
-                for j, out in enumerate(sys.input_labels):
-                    # Figure layout
+            self.plot_freq_analysis(axis=axis, savefig=savefig, showfig=showfig)
+
+    def plot_freq_analysis(self, axis: Axis, savefig: bool = False, showfig: bool = False) -> None:
+        """
+        Plot system's Bode and Nichols plots for the selected axis.
+
+        :param axis: Axis to analyze.
+        :type axis: Axis
+        :param savefig: Option to save figure.
+        :type savefig: bool
+        :param showfig: Option to show figure.
+        :type showfig: bool
+        """
+        # Define dynamic system
+        sys = self.sys.get_sys(axis)
+        labels = self._labels(axis)
+        # Loop through every input and output channel
+        for i, state_l in enumerate(labels.states):
+            for j, input_l in enumerate(labels.inputs):
+                # Figure layout
+                fig = plt.figure(figsize=(14, 8))
+                gs = gridspec.GridSpec(2, 2)
+
+                ax_mag = fig.add_subplot(gs[0, 0])
+                ax_phase = fig.add_subplot(gs[1, 0], sharex=ax_mag)
+                ax_nichols = fig.add_subplot(gs[:, 1])
+
+                # Bode plot
+                control.bode_plot(sys[i, j], omega_limits=self.bode_lims[axis], dB=True, ax=[ax_mag, ax_phase])
+
+                # Nichols plot
+                control.nichols_plot(sys[i, j], omega=self.bode_lims[axis], ax=ax_nichols)
+                ax_nichols.set_ylim(ax_mag.get_ylim())
+                # Replot to convert phase (y axis) to positive if necessary
+                if ax_phase.get_ylim()[1] < -170:
+                    plt.close(fig)
                     fig = plt.figure(figsize=(14, 8))
                     gs = gridspec.GridSpec(2, 2)
-
                     ax_mag = fig.add_subplot(gs[0, 0])
                     ax_phase = fig.add_subplot(gs[1, 0], sharex=ax_mag)
                     ax_nichols = fig.add_subplot(gs[:, 1])
 
-                    # Bode plot
-                    control.bode_plot(sys[i, j], omega_limits=self.bode_lims[axis], dB=True, ax=[ax_mag, ax_phase])
+                    mag, phase, omega = control.frequency_response(sys[i, j], omega_limits=self.bode_lims[axis])
+                    mag = np.squeeze(mag)
+                    phase = np.squeeze(phase)
 
-                    # Nichols plot
+                    ax_mag.semilogx(omega, 20 * np.log10(mag))
+                    ax_mag.set_ylabel("Magnitude [dB]")
+                    ax_mag.grid(True, which="both")
+                    ax_mag.set_xlim(self.bode_lims[axis])
+
+                    ax_phase.semilogx(omega, np.unwrap(np.degrees(phase), discont=8*np.pi))
+                    ax_phase.set_ylabel("Phase [deg]")
+                    ax_phase.set_xlabel("Frequency [rad/s]")
+                    ax_phase.grid(True, which="both")
+
                     control.nichols_plot(sys[i, j], omega=self.bode_lims[axis], ax=ax_nichols)
                     ax_nichols.set_ylim(ax_mag.get_ylim())
-                    # Replot to convert phase (y axis) to positive if necessary
-                    if ax_phase.get_ylim()[1] < -170:
-                        plt.close()
-                        fig = plt.figure(figsize=(14, 8))
-                        gs = gridspec.GridSpec(2, 2)
-                        ax_mag = fig.add_subplot(gs[0, 0])
-                        ax_phase = fig.add_subplot(gs[1, 0], sharex=ax_mag)
-                        ax_nichols = fig.add_subplot(gs[:, 1])
+                    min_phase = ax_phase.get_ylim()[0]
+                    max_phase = ax_phase.get_ylim()[1]
+                    ax_nichols.set_xlim((min_phase, max_phase))
+                else:
+                    ax_nichols.set_xlim(ax_phase.get_ylim())
+                ax_mag.set_title("Bode")
+                ax_nichols.set_title("Nichols")
+                plt.tight_layout()
 
-                        mag, phase, omega = control.frequency_response(sys[i, j], omega_limits=self.bode_lims[axis])
+                # Save/show figure
+                if savefig:
+                    input_var = self._clean_label(input_l)
+                    state_var = self._clean_label(state_l)
+                    figname = self.sys.aircraft.model + f'_{state_var}_{input_var}_Bode_Nichols.png'
+                    fig.savefig(self._figure_dir() / figname)
+                if showfig:
+                    plt.show()
+                plt.close(fig)
 
-                        ax_mag.semilogx(omega, 20 * np.log10(mag))
-                        ax_mag.set_ylabel("Magnitude [dB]")
-                        ax_mag.grid(True, which="both")
-                        ax_mag.set_xlim(self.bode_lims[axis])
-
-                        ax_phase.semilogx(omega, np.unwrap(np.degrees(phase), discont=8 * np.pi))
-                        ax_phase.set_ylabel("Phase [deg]")
-                        ax_phase.set_xlabel("Frequency [rad/s]")
-                        ax_phase.grid(True, which="both")
-
-                        control.nichols_plot(sys[i, j], omega=self.bode_lims[axis], ax=ax_nichols)
-                        ax_nichols.set_ylim(ax_mag.get_ylim())
-                        min_phase = ax_phase.get_ylim()[0]
-                        max_phase = ax_phase.get_ylim()[1]
-                        ax_nichols.set_xlim((min_phase, max_phase))
-                    else:
-                        ax_nichols.set_xlim(ax_phase.get_ylim())
-                    ax_mag.set_title("Bode")
-                    ax_nichols.set_title("Nichols")
-                    plt.tight_layout()
-
-                    # Save/show figure
-                    if savefig:
-                        inp_var = inp.replace('\\Delta', '').replace('\\', '').replace(' ', '')
-                        out_var = out.replace('\\Delta', '').replace('\\', '')
-                        figname = self.sys.aircraft.model + f'_{inp_var}_{out_var}_Bode_Nichols.png'
-                        figdir = os.path.join(os.getcwd(), 'aircraft', self.sys.aircraft.model)
-                        os.makedirs(figdir, exist_ok=True)
-                        plt.savefig(os.path.join(figdir, figname))
-                    if showfig:
-                        plt.show()
-                    plt.close()
-    
-    def plot_bode(self, savefig=False, showfig=False) -> None:
+    def plot_bode(self, axis: Axis, savefig: bool = False, showfig: bool = False) -> None:
         """
-        Plot system's Bode plots for all axes.
+        Plot system's Bode plots for for the selected axis.
 
+        :param axis: Axis to analyze.
+        :type axis: Axis
         :param savefig: Option to save figure.
-        :type savefig: string
+        :type savefig: bool
         :param showfig: Option to show figure.
-        :type showfig: string
+        :type showfig: bool
         """
-        # Loop through all axes and output channels
-        for axis in self.AXES:
-            # Define dynamic system
-            sys = self.sys.get_sys(axis)
-            sys.input_labels = self.input_labels[axis]
-            sys.output_labels = self.output_labels[axis]
-            # Loop through every input and output channel
-            for i, inp in enumerate(sys.output_labels):
-                for j, out in enumerate(sys.input_labels):
-                    # Figure layout
-                    plt.figure()
-                    control.bode_plot(sys[i, j], omega_limits=self.bode_lims[axis], dB=True)
-                    plt.suptitle(fr'Bode diagram of $[G(i\omega)]_{{{inp+out}}} = \frac{{{inp}}}{{{out}}}$')
-                    plt.tight_layout()
+        # Define dynamic system
+        sys = self.sys.get_sys(axis)
+        labels = self._labels(axis)
+        # Loop through every input and output channel
+        for i, state_l in enumerate(labels.states):
+            for j, input_l in enumerate(labels.inputs):
+                # Figure layout
+                fig = plt.figure()
+                control.bode_plot(sys[i, j], omega_limits=self.bode_lims[axis], dB=True)
+                plt.suptitle(fr'Bode diagram of $[G(i\omega)]_{{{state_l+input_l}}} = \frac{{{state_l}}}{{{input_l}}}$')
+                plt.tight_layout()
 
-                    # Save/show figure
-                    if savefig:
-                        inp_var = inp.replace('\\Delta', '').replace('\\', '').replace(' ', '')
-                        out_var = out.replace('\\Delta', '').replace('\\', '')
-                        figname = self.sys.aircraft.model + f'_{inp_var}_{out_var}_Bode.png'
-                        figdir = os.path.join(os.getcwd(), 'aircraft', self.sys.aircraft.model)
-                        os.makedirs(figdir, exist_ok=True)
-                        plt.savefig(os.path.join(figdir, figname))
-                    if showfig:
-                        plt.show()
-                    plt.close()
+                # Save/show figure
+                if savefig:
+                    input_var = self._clean_label(input_l)
+                    state_var = self._clean_label(state_l)
+                    figname = self.sys.aircraft.model + f'_{state_var}_{input_var}_Bode.png'
+                    fig.savefig(self._figure_dir() / figname)
+                if showfig:
+                    plt.show()
+                plt.close(fig)
     
-    def plot_nichols(self, savefig=False, showfig=False) -> None:
+    def plot_nichols(self, axis: Axis, savefig: bool = False, showfig: bool = False) -> None:
         """
-        Plot system's Nichols plots for all axes.
+        Plot system's Nichols plots for for the selected axis.
 
+        :param axis: Axis to analyze.
+        :type axis: Axis
         :param savefig: Option to save figure.
-        :type savefig: string
+        :type savefig: bool
         :param showfig: Option to show figure.
-        :type showfig: string
+        :type showfig: bool
         """
-        # Loop through all axes and output channels
-        for axis in self.AXES:
-            # Define dynamic system
-            sys = self.sys.get_sys(axis)
-            sys.input_labels = self.input_labels[axis]
-            sys.output_labels = self.output_labels[axis]
-             # Loop through every input and output channel
-            for i, inp in enumerate(sys.output_labels):
-                for j, out in enumerate(sys.input_labels):
-                    # Figure layout
-                    plt.figure()
-                    control.nichols_plot(sys[i, j], omega=self.bode_lims[axis])
-                    plt.suptitle(fr'Nichols diagram of $[G(i\omega)]_{{{inp+out}}} = \frac{{{inp}}}{{{out}}}$')
-                    plt.tight_layout()
+        # Define dynamic system
+        sys = self.sys.get_sys(axis)
+        labels = self._labels(axis)
+        # Loop through every input and output channel
+        for i, state_l in enumerate(labels.states):
+            for j, input_l in enumerate(labels.inputs):
+                # Figure layout
+                fig = plt.figure()
+                control.nichols_plot(sys[i, j], omega=self.bode_lims[axis])
+                plt.suptitle(fr'Nichols diagram of $[G(i\omega)]_{{{state_l+input_l}}} = \frac{{{state_l}}}{{{input_l}}}$')
+                plt.tight_layout()
 
-                    # Save/show figure
-                    if savefig:
-                        inp_var = inp.replace('\\Delta', '').replace('\\', '').replace(' ', '')
-                        out_var = out.replace('\\Delta', '').replace('\\', '')
-                        figname = self.sys.aircraft.model + f'_{inp_var}_{out_var}_Nichols.png'
-                        figdir = os.path.join(os.getcwd(), 'aircraft', self.sys.aircraft.model)
-                        os.makedirs(figdir, exist_ok=True)
-                        plt.savefig(os.path.join(figdir, figname))
-                    if showfig:
-                        plt.show()
-                    plt.close()
+                # Save/show figure
+                if savefig:
+                    input_var = self._clean_label(input_l)
+                    state_var = self._clean_label(state_l)
+                    figname = self.sys.aircraft.model + f'_{state_var}_{input_var}_Nichols.png'
+                    fig.savefig(self._figure_dir() / figname)
+                if showfig:
+                    plt.show()
+                plt.close(fig)

@@ -7,32 +7,31 @@ Unit conversion module.
 
 """
 
-from math import pi, tan, atan
 from enum import Enum, auto
+from math import atan, pi, tan
+
 from utilities import constants
 
-# ft to m conversion factor
+# Length conversion factors
 FEET_TO_METERS = 0.3048
-# km to m conversion factor
 KILOMETERS_TO_METERS = 1000.0
-# NM to m conversion factor
 NAUTICAL_MILES_TO_METERS = 1852.0
-# lb to kg conversion factor
+
+# Mass conversion factors
 POUNDS_TO_KILOGRAMS = 0.45359237
-# Slug to kg conversion factor
 SLUG_TO_KILOGRAMS = 14.59390
-# min to s conversion factor
+
+# Time conversion factors
 MINUTES_TO_SECONDS = 60.0
-# h to s conversion factor
 HOURS_TO_SECONDS = 3600.0
-# kt to m/s conversion factor
+
+# Speed conversion factors
 KNOTS_TO_METERS_PER_SECOND = 0.5144444444
-# degC to K conversion constant
+
+# Temperature conversion constants
 CELSIUS_TO_KELVIN = 273.15
-# Fahrenheit to K conversion constant
 FAHRENHEIT_TO_KELVIN_C = 459.67
-# Fahrenheit to K conversion factor
-FAHRENHEIT_TO_KELVIN_F = 1.0/1.8
+FAHRENHEIT_TO_KELVIN_F = 1.0 / 1.8
 
 
 class WeightUnit(Enum):
@@ -91,7 +90,42 @@ class AngleUnit(Enum):
     GRADIENT = auto()
 
 
-def convert_weight(value, from_ = WeightUnit.KILOGRAMS, to = WeightUnit.KILOGRAMS):
+_WEIGHT_TO_KILOGRAMS = {
+    WeightUnit.KILOGRAMS: 1.0,
+    WeightUnit.POUNDS: POUNDS_TO_KILOGRAMS,
+    WeightUnit.SLUG: SLUG_TO_KILOGRAMS,
+}
+
+_LENGTH_TO_METERS = {
+    LengthUnit.METERS: 1.0,
+    LengthUnit.FEET: FEET_TO_METERS,
+    LengthUnit.NAUTICAL_MILES: NAUTICAL_MILES_TO_METERS,
+    LengthUnit.KILOMETERS: KILOMETERS_TO_METERS,
+}
+
+_SPEED_TO_METERS_PER_SECOND = {
+    SpeedUnit.METER_PER_SECOND: 1.0,
+    SpeedUnit.KILOMETERS_PER_HOUR: KILOMETERS_TO_METERS / HOURS_TO_SECONDS,
+    SpeedUnit.KNOTS: KNOTS_TO_METERS_PER_SECOND,
+    SpeedUnit.FEET_PER_MINUTE: FEET_TO_METERS / MINUTES_TO_SECONDS,
+}
+
+_FORCE_TO_NEWTONS = {
+    ForceUnit.NEWTONS: 1.0,
+    ForceUnit.KILOGRAMS: constants.g,
+    ForceUnit.POUNDS: POUNDS_TO_KILOGRAMS * constants.g,
+}
+
+
+def _convert_linear(value, from_unit, to_unit, factors):
+    """
+    Convert units where every unit scales linearly from a base unit.
+
+    """
+    return value * factors[from_unit] / factors[to_unit]
+
+
+def convert_weight(value, from_=WeightUnit.KILOGRAMS, to=WeightUnit.KILOGRAMS):
     """
     Convert weight to the desired unit.
 
@@ -105,22 +139,10 @@ def convert_weight(value, from_ = WeightUnit.KILOGRAMS, to = WeightUnit.KILOGRAM
     :rtype: float
     """
 
-    converted = value
-
-    if from_ is WeightUnit.POUNDS:
-        converted *= POUNDS_TO_KILOGRAMS
-    elif from_ is WeightUnit.SLUG:
-        converted *= SLUG_TO_KILOGRAMS
-
-    if to is WeightUnit.POUNDS:
-        converted /= POUNDS_TO_KILOGRAMS
-    elif to is WeightUnit.SLUG:
-        converted /= SLUG_TO_KILOGRAMS
-
-    return converted
+    return _convert_linear(value, from_, to, _WEIGHT_TO_KILOGRAMS)
 
 
-def convert_length(value, from_ = LengthUnit.METERS, to = LengthUnit.METERS):
+def convert_length(value, from_=LengthUnit.METERS, to=LengthUnit.METERS):
     """
     Convert length to the desired unit.
 
@@ -134,26 +156,10 @@ def convert_length(value, from_ = LengthUnit.METERS, to = LengthUnit.METERS):
     :rtype: float
     """
 
-    converted = value
-
-    if from_ is LengthUnit.FEET:
-        converted *= FEET_TO_METERS
-    elif from_ is LengthUnit.NAUTICAL_MILES:
-        converted *= NAUTICAL_MILES_TO_METERS
-    elif from_ is LengthUnit.KILOMETERS:
-        converted *= KILOMETERS_TO_METERS
-
-    if to is LengthUnit.FEET:
-        converted /= FEET_TO_METERS
-    elif to is LengthUnit.NAUTICAL_MILES:
-        converted /= NAUTICAL_MILES_TO_METERS
-    elif to is LengthUnit.KILOMETERS:
-        converted /= KILOMETERS_TO_METERS
-
-    return converted
+    return _convert_linear(value, from_, to, _LENGTH_TO_METERS)
 
 
-def convert_temperature(value, from_ = TemperatureUnit.KELVIN, to = TemperatureUnit.KELVIN):
+def convert_temperature(value, from_=TemperatureUnit.KELVIN, to=TemperatureUnit.KELVIN):
     """
     Convert temperature to the desired unit.
 
@@ -182,7 +188,7 @@ def convert_temperature(value, from_ = TemperatureUnit.KELVIN, to = TemperatureU
     return converted
 
 
-def convert_speed(value, from_ = SpeedUnit.METER_PER_SECOND, to = SpeedUnit.METER_PER_SECOND):
+def convert_speed(value, from_=SpeedUnit.METER_PER_SECOND, to=SpeedUnit.METER_PER_SECOND):
     """
     Convert speed to the desired unit.
 
@@ -196,26 +202,10 @@ def convert_speed(value, from_ = SpeedUnit.METER_PER_SECOND, to = SpeedUnit.METE
     :rtype: float
     """
 
-    converted = value
-
-    if from_ is SpeedUnit.KILOMETERS_PER_HOUR:
-        converted = (converted * KILOMETERS_TO_METERS) / HOURS_TO_SECONDS
-    elif from_ is SpeedUnit.KNOTS:
-        converted *= KNOTS_TO_METERS_PER_SECOND
-    elif from_ is SpeedUnit.FEET_PER_MINUTE:
-        converted = (converted * FEET_TO_METERS) / MINUTES_TO_SECONDS
-
-    if to is SpeedUnit.KILOMETERS_PER_HOUR:
-        converted = (converted * HOURS_TO_SECONDS) / KILOMETERS_TO_METERS
-    elif to is SpeedUnit.KNOTS:
-        converted /= KNOTS_TO_METERS_PER_SECOND
-    elif to is SpeedUnit.FEET_PER_MINUTE:
-        converted = (converted * MINUTES_TO_SECONDS) / FEET_TO_METERS
-
-    return converted
+    return _convert_linear(value, from_, to, _SPEED_TO_METERS_PER_SECOND)
 
 
-def convert_force(value, from_ = ForceUnit.NEWTONS, to = ForceUnit.NEWTONS):
+def convert_force(value, from_=ForceUnit.NEWTONS, to=ForceUnit.NEWTONS):
     """
     Convert force to the desired unit.
 
@@ -229,22 +219,10 @@ def convert_force(value, from_ = ForceUnit.NEWTONS, to = ForceUnit.NEWTONS):
     :rtype: float
     """
 
-    converted = value
-
-    if from_ is ForceUnit.KILOGRAMS:
-        converted *= constants.g
-    elif from_ is ForceUnit.POUNDS:
-        converted *= (POUNDS_TO_KILOGRAMS * constants.g)
-
-    if to is ForceUnit.KILOGRAMS:
-        converted /= constants.g
-    elif to is ForceUnit.POUNDS:
-        converted /= (POUNDS_TO_KILOGRAMS * constants.g)
-
-    return converted
+    return _convert_linear(value, from_, to, _FORCE_TO_NEWTONS)
 
 
-def convert_angle(value, from_ = AngleUnit.RADIANS, to = AngleUnit.RADIANS):
+def convert_angle(value, from_=AngleUnit.RADIANS, to=AngleUnit.RADIANS):
     """
     Convert angle to the desired unit.
 
@@ -261,12 +239,12 @@ def convert_angle(value, from_ = AngleUnit.RADIANS, to = AngleUnit.RADIANS):
     converted = value
 
     if from_ is AngleUnit.DEGREES:
-        converted *= (pi / 180.0)
+        converted *= pi / 180.0
     elif from_ is AngleUnit.GRADIENT:
         converted = atan(converted / 100.0)
 
     if to is AngleUnit.DEGREES:
-        converted *= (180.0 / pi)
+        converted *= 180.0 / pi
     elif to is AngleUnit.GRADIENT:
         converted = tan(converted) * 100.0
 

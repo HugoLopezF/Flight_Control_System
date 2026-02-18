@@ -23,7 +23,7 @@ class Aircraft:
         self.model = model
 
         # Load aircraft data
-        data_path = Path(main_dir) / "aircraft" / f"{model}.json"
+        data_path = Path(main_dir) / "flight_dynamics" / f"{model}.json"
         with open(data_path) as data:
             aircraft_data = json.load(data)
         aircraft_data = self.convert_to_SI(aircraft_data)
