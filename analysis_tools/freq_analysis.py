@@ -6,6 +6,7 @@ import matplotlib.gridspec as gridspec
 from flight_control_system.state_space import LinearizedSystem
 from flight_control_system.axis_metadata import AXIS_LABELS
 from flight_control_system.types import Axis
+from typing import Mapping
 
 class FrequencyAnalyzer:
     AXES = (Axis.LONG, Axis.LATDIR)
@@ -20,13 +21,28 @@ class FrequencyAnalyzer:
         }
 
     def _labels(self, axis: Axis):
+        """
+        Obtain axis labels.
+
+        :param axis: Axis to get labels for.
+        :type axis: Axis
+        """
         return self.labels[axis]
     
     @staticmethod
     def _clean_label(label: str) -> str:
+        """
+        Clean labels for figure naming.
+
+        :param label: Label to clean.
+        :type label: str
+        """
         return label.replace("\\Delta", "").replace("\\", "").replace(" ", "")
     
     def _figure_dir(self) -> Path:
+        """
+        Construct figure saving directory.
+        """
         figdir = self.fig_root / self.sys.aircraft.model
         figdir.mkdir(parents=True, exist_ok=True)
         return figdir
@@ -34,6 +50,13 @@ class FrequencyAnalyzer:
     def channel_metrics(self, axis: Axis, i: int, j: int) -> dict:
         """
         Return frequency-domain metrics for channel y_i / u_j.
+
+        :param axis: Axis to analyze.
+        :type axis: Axis
+        :param i: State index to analyze.
+        :type i: int
+        :param j: Input index to analyze.
+        :type j: int
         """
         gij = self.sys.get_sys(axis)[i, j]
 
@@ -151,7 +174,8 @@ class FrequencyAnalyzer:
                     fig.savefig(self._figure_dir() / figname)
                 if showfig:
                     plt.show()
-                plt.close(fig)
+                else:
+                    plt.close(fig)
 
     def plot_bode(self, axis: Axis, savefig: bool = False, showfig: bool = False) -> None:
         """
@@ -184,7 +208,8 @@ class FrequencyAnalyzer:
                     fig.savefig(self._figure_dir() / figname)
                 if showfig:
                     plt.show()
-                plt.close(fig)
+                else:
+                    plt.close(fig)
     
     def plot_nichols(self, axis: Axis, savefig: bool = False, showfig: bool = False) -> None:
         """
@@ -217,4 +242,44 @@ class FrequencyAnalyzer:
                     fig.savefig(self._figure_dir() / figname)
                 if showfig:
                     plt.show()
-                plt.close(fig)
+                else:
+                    plt.close(fig)
+
+    @staticmethod
+    def compare_components(
+        tf_map: Mapping[str, control.TransferFunction],
+        omega_limits: tuple[float, float] = (1e-2, 1e2),
+        title: str = "Actuator Bode Comparison",
+        showfig: bool = False,
+        savefig: bool = False,
+        save_path: str | Path | None = None,
+    ):
+        if not tf_map:
+            raise ValueError("tf_map is empty.")
+        else:
+            systems = list(tf_map.values())
+            labels = list(tf_map.keys())
+
+        fig, (ax_mag, ax_phase) = plt.subplots(2, 1, sharex=True)
+        control.bode_plot(systems, omega_limits=omega_limits, dB=True, deg=True, ax=[ax_mag, ax_phase])
+
+        # Attach labels to plotted lines
+        for line, lbl in zip(ax_mag.get_lines(), labels):
+            line.set_label(lbl)
+        for line, lbl in zip(ax_phase.get_lines(), labels):
+            line.set_label(lbl)
+
+        fig.suptitle(title)
+        ax_mag.legend(loc="best")
+        ax_phase.legend(loc="best")
+        plt.tight_layout()
+
+        if savefig and save_path is not None:
+            figname = f'{title.replace(" ", "_")}.png'
+            save_path = Path(save_path)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(save_path / figname)
+        if showfig:
+            plt.show()
+        else:
+            plt.close(fig)

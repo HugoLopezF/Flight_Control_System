@@ -11,7 +11,7 @@ def main():
     AXES = (Axis.LONG, Axis.LATDIR)
 
     # Initialize aircraft to study
-    myaircraft = Aircraft("S211")
+    myaircraft = Aircraft("Learjet24")
 
     # Get matrices
     mylin_sys = LinearizedSystem(myaircraft)

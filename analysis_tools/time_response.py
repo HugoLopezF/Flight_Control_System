@@ -17,9 +17,18 @@ class TimeResponseAnalyzer:
         self.labels = AXIS_LABELS
 
     def _labels(self, axis: Axis):
+        """
+        Obtain axis labels.
+
+        :param axis: Axis to get labels for.
+        :type axis: Axis
+        """
         return self.labels[axis]
     
     def _figure_dir(self) -> Path:
+        """
+        Construct figure saving directory.
+        """
         figdir = self.fig_root / self.sys.aircraft.model
         figdir.mkdir(parents=True, exist_ok=True)
         return figdir
