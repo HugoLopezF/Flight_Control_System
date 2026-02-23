@@ -1,4 +1,7 @@
+import numpy as np
 import control
+from enum import Enum
+
 
 class Sensor:
     def __init__(
@@ -6,7 +9,7 @@ class Sensor:
         delay: float = 0.01, 
         gain: float = 1.0,
         num_order: int = 1,
-        den_order: int = 1
+        den_order: int = 1,
     ):
         """
         Padé delay sensor model.
@@ -26,9 +29,9 @@ class Sensor:
             raise ValueError("delay must be >= 0")
         if den_order < 0:
             raise ValueError("den_order must be >= 0")
-        if num_order is not None and num_order < 0:
+        if num_order < 0:
             raise ValueError("num_degree must be >= 0")
-        if den_order is not None and num_order > den_order:
+        if num_order > den_order:
             raise ValueError("num_degree must be <= den_order")
 
         self.delay = delay

@@ -6,6 +6,7 @@ from analysis_tools.input_signals import InputSignal, build_input
 from flight_control_system.types import Axis, InputChannel
 from flight_control_system.axis_metadata import AXIS_LABELS
 from flight_control_system.state_space import LinearizedSystem
+from typing import Mapping
 
 
 class TimeResponseAnalyzer:
@@ -32,10 +33,83 @@ class TimeResponseAnalyzer:
         figdir = self.fig_root / self.sys.aircraft.model
         figdir.mkdir(parents=True, exist_ok=True)
         return figdir
-
-    def get_response(self, t: np.ndarray, axis: Axis, channel: InputChannel, input_type: InputSignal, amp: float = 1.0, t_end: float = 10.0) -> tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
+    
+    @staticmethod
+    def get_component_response(tf: control.TransferFunction | control.StateSpace, t: np.ndarray, input_type: InputSignal, amp: float = 1.0, t_end: float = 10.0) -> tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
         """
-        Obtain system response for selected input and axis.
+        Obtain component's response for selected input.
+
+        :param tf: Transfer function to obtain response from
+        :type tf: control.TransferFunction | control.StateSpace
+        :param t: Time vector.
+        :type t: np.ndarray
+        :param input_type: Input signal type.
+        :type input_type: InputSignal
+        :param amp: Input signal amplitude (nondimensional).
+        :type amp: float
+        :param t_end: Time instant at which the ramp stops (if ramp).
+        :type t_end: float
+
+        :rtype: tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]
+        """
+        # Fill input channels
+        u = np.zeros((1, len(t)))
+        amp_rad = np.deg2rad(amp)
+        u = build_input(signal=input_type, t=t, amp=amp_rad, t_end=t_end)
+
+        # Calculate response
+        t_out, y_out = control.forced_response(tf, t, u)
+        # Convert response back to degrees except for u channel (m/(s*rad))
+        y_out *= 180 / np.pi
+        u *= 180 / np.pi
+
+        return tf, t_out, y_out, u
+    
+    @staticmethod
+    def compare_components(
+        tf_map: Mapping[str, control.TransferFunction],
+        t: np.ndarray,
+        input_type: InputSignal, 
+        amp: float = 1.0, 
+        t_end: float = 10.0,
+        title: str = "Actuator response Comparison",
+        showfig: bool = False,
+        savefig: bool = False,
+        save_path: str | Path | None = None,
+    ):
+        """
+
+        """
+
+        if not tf_map:
+            raise ValueError("tf_map is empty.")
+
+        fig = plt.figure()
+        fig.suptitle(f'Component\'s response  to a {amp}deg {input_type.value}', fontsize=13)
+        for label, tf in tf_map.items():
+            tf, t_out, y_out, u = TimeResponseAnalyzer.get_component_response(tf=tf, t=t, input_type=input_type, amp=amp, t_end=t_end)
+            plt.plot(t_out, y_out, label=label)
+        plt.plot(t_out, u, label='Input')
+        plt.grid(which='both')
+        plt.ylabel('$y(t)$ [deg]')
+        plt.xlabel('$t$ [s]')
+        plt.legend(loc="best")
+        plt.tight_layout()
+
+        # Save/show plot
+        if savefig and save_path is not None:
+            figname = f'{title.replace(" ", "_")}.png'
+            save_path = Path(save_path)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(save_path / figname)
+        if showfig:
+            plt.show()
+        else:
+            plt.close(fig)
+
+    def get_aircraft_response(self, t: np.ndarray, axis: Axis, channel: InputChannel, input_type: InputSignal, amp: float = 1.0, t_end: float = 10.0) -> tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Obtain aircraft's response for selected input and axis.
 
         :param t: Time vector.
         :type t: np.ndarray
@@ -77,9 +151,9 @@ class TimeResponseAnalyzer:
 
         return sys, t_out, y_out, u
         
-    def plot_response(self, t: np.ndarray, axis: Axis, channel: InputChannel, input_type: InputSignal, amp: float = 1.0, t_end: float = 10.0, savefig: bool = False, showfig: bool = False) -> None:
+    def plot_aircraft_response(self, t: np.ndarray, axis: Axis, channel: InputChannel, input_type: InputSignal, amp: float = 1.0, t_end: float = 10.0, savefig: bool = False, showfig: bool = False) -> None:
         """
-        Plot system response for selected input type and axis.
+        Plot aircraft's response for selected input type and axis.
 
         :param t: Time vector.
         :type t: np.ndarray
@@ -99,7 +173,7 @@ class TimeResponseAnalyzer:
         :type showfig: bool
         """
         # Get system response
-        sys, t_out, y_out, u = self.get_response(t=t, axis=axis, amp=amp, t_end=t_end, channel=channel, input_type=input_type)
+        sys, t_out, y_out, u = self.get_aircraft_response(t=t, axis=axis, amp=amp, t_end=t_end, channel=channel, input_type=input_type)
         # Reformat input/output labels for plotting
         labels = self._labels(axis)
         sys.input_labels = [f'${var}$' for var in labels.inputs]
@@ -134,9 +208,9 @@ class TimeResponseAnalyzer:
             plt.show()
         plt.close(fig)
 
-    def plot_cbc_response(self, t: np.ndarray, input_type: InputSignal, amp: float = 1.0, t_end: float = 10.0, savefig: bool = False, showfig: bool = False) -> None:
+    def plot_full_response(self, t: np.ndarray, input_type: InputSignal, amp: float = 1.0, t_end: float = 10.0, savefig: bool = False, showfig: bool = False) -> None:
         """
-        Plot system response for selected input type for all axes.
+        Plot aircraft's response for selected input type for all axes.
 
 
         :param t: Time vector.
@@ -156,4 +230,4 @@ class TimeResponseAnalyzer:
         for axis in self.AXES:        
             labels = self._labels(axis)
             for ch in labels.input_channels:
-                self.plot_response(t, axis=axis, input_type=input_type, amp=amp, t_end=t_end, channel=ch, savefig=savefig, showfig=showfig)
+                self.plot_aircraft_response(t, axis=axis, input_type=input_type, amp=amp, t_end=t_end, channel=ch, savefig=savefig, showfig=showfig)

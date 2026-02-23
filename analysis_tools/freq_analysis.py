@@ -248,7 +248,7 @@ class FrequencyAnalyzer:
     @staticmethod
     def compare_components(
         tf_map: Mapping[str, control.TransferFunction],
-        omega_limits: tuple[float, float] = (1e-2, 1e2),
+        omega_limits: tuple[float, float] = (1e-1, 1e3),
         title: str = "Actuator Bode Comparison",
         showfig: bool = False,
         savefig: bool = False,
