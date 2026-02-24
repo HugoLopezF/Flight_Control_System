@@ -10,26 +10,21 @@ from flight_dynamics.data_classes import LinearizationParameters
 from flight_dynamics.stability_derivatives import StabilityDerivativesCalculator
 from flight_control_system.state_space import LinearizedSystem
 from flight_control_system.types import Axis
+from itertools import product
+from matplotlib.colors import hsv_to_rgb
 
 
 @dataclass(frozen=True)
 class SweepPoint:
-    value: float
+    factors: dict[str, float]
     axis: Axis
     poles: np.ndarray
-    zeros: np.ndarray
-    sys: control.StateSpace
 
 
 class SensitivityAnalyzer:
-    LONG_COEFFS = ("Cm_alpha", "Cm_q")
-    LATDIR_COEFFS = ("Cn_beta", "Cn_r")
-
     SUPPORTED = {
-        "Cm_alpha": (Axis.LONG, "long", "Cm_alpha"),
-        "Cm_q": (Axis.LONG, "long", "Cm_q"),
-        "Cn_r": (Axis.LATDIR, "latdir", "Cn_r"),
-        "Cn_beta": (Axis.LATDIR, "latdir", "Cn_beta"),
+        Axis.LONG: ("Cm_alpha", "Cm_q"),
+        Axis.LATDIR: ("Cn_beta", "Cn_r"),
     }
 
     def __init__(self, model: str, fig_root: str | Path = "sens_study"):
@@ -56,58 +51,156 @@ class SensitivityAnalyzer:
         ac.stab_der.long = StabilityDerivativesCalculator.calculate_longitudinal(params)
         ac.stab_der.latdir = StabilityDerivativesCalculator.calculate_lateral_directional(params)
 
-    def _group_coeffs(self, group: Axis | str) -> tuple[str, str]:
-        if group in (Axis.LONG, "long"):
-            return self.LONG_COEFFS
-        if group in (Axis.LATDIR, "latdir"):
-            return self.LATDIR_COEFFS
-        raise ValueError("group must be 'long' or 'latdir'")
+    @staticmethod
+    def _add_omega_grid(
+        ax: plt.Axes,
+        omegas: tuple[float, ...] = (0.5, 1.0, 2.0, 5.0, 10.0),
+        color: str = "0.35",
+        alpha: float = 0.45,
+        lw: float = 0.8,
+    ) -> None:
+        x_min, x_max = ax.get_xlim()
+        y_min, y_max = ax.get_ylim()
 
-    def build_systems(self, coeff_name: str, values: Iterable[float]) -> list[tuple[float, Axis, LinearizedSystem]]:
-        if coeff_name not in self.SUPPORTED:
-            allowed = ", ".join(self.SUPPORTED.keys())
-            raise ValueError(f"Unsupported coefficient '{coeff_name}'. Allowed: {allowed}")
+        # Left-half-plane semicircles: sigma^2 + omega_d^2 = omega_n^2
+        th = np.linspace(-np.pi / 2, np.pi / 2, 600)
 
-        axis, group, attr = self.SUPPORTED[coeff_name]
-        systems: list[tuple[float, Axis, LinearizedSystem]] = []
+        for wn in omegas:
+            if wn <= 0:
+                continue
 
-        for v in values:
-            v = float(v)
+            x = -wn * np.cos(th)
+            y =  wn * np.sin(th)
+
+            mask = (x >= x_min) & (x <= x_max) & (y >= y_min) & (y <= y_max)
+            if not np.any(mask):
+                continue
+
+            x_vis = x[mask]
+            y_vis = y[mask]
+            ax.plot(x_vis, y_vis, ":", color=color, alpha=alpha, lw=lw, zorder=0)
+
+            # Label from visible segment (not fixed angle)
+            idx = int(0.75 * (x_vis.size - 1))  # upper branch
+            x_lbl = x_vis[idx]
+            y_lbl = y_vis[idx]
+            ax.text(
+                x_lbl, y_lbl, fr"$\omega_n={wn:g}$",
+                fontsize=7, color=color, ha="left", va="bottom",
+                bbox=dict(fc="white", ec="none", alpha=0.6, pad=0.15),
+                clip_on=True,
+            )
+
+    @staticmethod
+    def _add_damping_grid(
+        ax: plt.Axes,
+        zetas: tuple[float, ...] = (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9),
+        color: str = "0.35",
+        alpha: float = 0.45,
+        lw: float = 0.8,
+    ) -> None:
+        x_min, x_max = ax.get_xlim()
+        y_min, y_max = ax.get_ylim()
+
+        # Left half-plane only
+        x_left = np.linspace(min(x_min, -1e-6), 0.0, 400)
+        y_abs_max = max(abs(y_min), abs(y_max))
+
+        for zeta in zetas:
+            if not (0.0 < zeta < 1.0):
+                continue
+
+            # tan(theta), theta = arccos(zeta)
+            m = np.sqrt(1.0 - zeta**2) / zeta
+            y = m * (-x_left)
+
+            mask = y <= 1.05 * y_abs_max
+            if not np.any(mask):
+                continue
+
+            ax.plot(x_left[mask],  y[mask], ":", color=color, alpha=alpha, lw=lw, zorder=0)
+            ax.plot(x_left[mask], -y[mask], ":", color=color, alpha=alpha, lw=lw, zorder=0)
+
+            x_vis = x_left[mask]
+            y_vis = y[mask]
+
+            if x_vis.size > 0:
+                # pick a point in the visible segment (closer to upper side)
+                idx = int(0.25 * (x_vis.size - 1))
+                x_lbl = x_vis[idx]
+                y_lbl = y_vis[idx]
+
+                ax.text(
+                    x_lbl, y_lbl, fr"$\zeta={zeta:.1f}$",
+                    fontsize=7, color=color, ha="left", va="bottom",
+                    bbox=dict(fc="white", ec="none", alpha=0.6, pad=0.15),
+                    clip_on=True,
+                )
+
+    def build_systems(self, group: Axis, coeff_values: Mapping[str, Iterable[float]]) -> list[tuple[float, Axis, LinearizedSystem]]:
+        coeff_a, coeff_b = self.SUPPORTED[group]
+        vals_a = [float(v) for v in coeff_values.get(coeff_a, [])]
+        vals_b = [float(v) for v in coeff_values.get(coeff_b, [])]
+
+        # No artificial full [1.0] arrays:
+        # both provided -> full grid
+        # only one provided -> sweep only that one
+        # none provided -> single point
+        if vals_a and vals_b:
+            comb = ((a, b) for a, b in product(vals_a, vals_b))
+        elif vals_a:
+            comb = ((a, 1.0) for a in vals_a)
+        elif vals_b:
+            comb = ((1.0, b) for b in vals_b)
+        else:
+            comb = ((1.0, 1.0),)
+
+        systems: list[tuple[dict[str, float], Axis, LinearizedSystem]] = []
+        coeff_block_name = group.value
+
+        for fa, fb in comb:
+            factors = {coeff_a: fa, coeff_b: fb}
             ac = Aircraft(self.model)
-            setattr(getattr(ac.stab_coeffs, group), attr, v)
+            coeff_block = getattr(ac.stab_coeffs, coeff_block_name)
+
+            for name, factor in factors.items():
+                base = getattr(coeff_block, name)
+                setattr(coeff_block, name, base * factor)
+
             self._recompute_derivatives(ac)
-            lin_sys = LinearizedSystem(ac)
-            systems.append((v, axis, lin_sys))
+            systems.append((factors, group, LinearizedSystem(ac)))
 
         return systems
 
-    def sweep(self, coeff_name: str, values: Iterable[float]) -> list[SweepPoint]:
+    def sweep(self, group: Axis, coeff_values: Mapping[str, Iterable[float]]) -> list[SweepPoint]:
         points: list[SweepPoint] = []
-        for v, axis, lin_sys in self.build_systems(coeff_name, values):
+        for factors, axis, lin_sys in self.build_systems(group, coeff_values):
             sys = lin_sys.get_sys(axis)
             poles = np.asarray(control.poles(sys), dtype=complex)
-            zeros = np.asarray(control.zeros(sys), dtype=complex)
-            points.append(SweepPoint(value=v, axis=axis, poles=poles, zeros=zeros, sys=sys))
+            points.append(SweepPoint(factors=factors, axis=axis, poles=poles))
         return points
 
     def plot_pzmap(
         self,
-        group: Axis | str,
+        group: Axis,
         coeff_values: Mapping[str, Iterable[float]],
-        show_zeros: bool = True,
+        show_zeros: bool = False,
         savefig: bool = False,
         showfig: bool = False,
     ):
-        coeffs = self._group_coeffs(group)
-        sweeps = {c: self.sweep(c, coeff_values[c]) for c in coeffs}
+        coeff_a, coeff_b = self.SUPPORTED[group]
+        vals_a = [float(v) for v in coeff_values.get(coeff_a, [])]
+        vals_b = [float(v) for v in coeff_values.get(coeff_b, [])]
+        points = self.sweep(group, {coeff_a: vals_a, coeff_b: vals_b})
 
-        fig, axes = plt.subplots(1, 2, figsize=(14, 5), sharex=True, sharey=True)
-        axes = np.atleast_1d(axes)
+        varied = [name for name, vals in ((coeff_a, vals_a), (coeff_b, vals_b)) if vals]
 
-        for ax, coeff in zip(axes, coeffs):
-            points = sweeps[coeff]
-            vals = np.array([p.value for p in points], dtype=float)
-            vmin, vmax = vals.min(), vals.max()
+        fig, ax = plt.subplots(figsize=(9, 6))
+        if len(varied) <= 1:
+            # One-parameter color map (or nominal single point)
+            name = varied[0] if varied else coeff_a
+            cvals = np.array([p.factors[name] for p in points], dtype=float)
+            vmin, vmax = cvals.min(), cvals.max()
             if np.isclose(vmin, vmax):
                 vmax = vmin + 1.0
 
@@ -115,28 +208,57 @@ class SensitivityAnalyzer:
             cmap = plt.get_cmap("viridis")
 
             for p in points:
-                color = cmap(norm(p.value))
-                ax.plot(p.poles.real, p.poles.imag, "x", color=color, ms=7)
-                if show_zeros and p.zeros.size:
-                    ax.plot(p.zeros.real, p.zeros.imag, "o", mfc="none", mec=color, ms=6)
+                cv = p.factors[name]
+                ax.plot(p.poles.real, p.poles.imag, "x", color=cmap(norm(cv)), ms=7, mew=5)
 
             sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
             sm.set_array([])
-            fig.colorbar(sm, ax=ax, pad=0.02, label=coeff)
+            fig.colorbar(sm, ax=ax, pad=0.02, label=f"{name} factor")
 
-            ax.axhline(0.0, color="k", lw=0.8, alpha=0.6)
-            ax.axvline(0.0, color="k", lw=0.8, alpha=0.6)
-            ax.grid(True, which="both", linestyle=":", alpha=0.5)
-            ax.set_title(coeff)
-            ax.set_xlabel("Real [1/s]")
-            ax.set_ylabel("Imag [rad/s]")
+        else:
+            # Two-parameter bivariate color:
+            # hue <- coeff_a, value/brightness <- coeff_b
+            a_vals = np.array([p.factors[coeff_a] for p in points], dtype=float)
+            b_vals = np.array([p.factors[coeff_b] for p in points], dtype=float)
 
-        group_name = "long" if group in (Axis.LONG, "long") else "latdir"
-        fig.suptitle(f"PZ sensitivity grid ({group_name})")
+            n1 = plt.Normalize(a_vals.min(), a_vals.max() if not np.isclose(a_vals.min(), a_vals.max()) else a_vals.min() + 1.0)
+            n2 = plt.Normalize(b_vals.min(), b_vals.max() if not np.isclose(b_vals.min(), b_vals.max()) else b_vals.min() + 1.0)
+
+            for p, va, vb in zip(points, a_vals, b_vals):
+                h = n1(va)
+                v = 0.30 + 0.70 * n2(vb)
+                color = hsv_to_rgb((h, 0.90, v))
+                ax.plot(p.poles.real, p.poles.imag, "x", color=color, ms=7, mew=5)
+
+            # 2D legend inset
+            h = np.linspace(0, 1, 200)
+            v = np.linspace(0, 1, 200)
+            H, V = np.meshgrid(h, v)
+            legend_rgb = hsv_to_rgb(np.dstack((H, np.full_like(H, 0.90), 0.30 + 0.70 * V)))
+
+            iax = ax.inset_axes([0.62, 0.06, 0.33, 0.33])
+            iax.imshow(
+                legend_rgb,
+                origin="lower",
+                aspect="auto",
+                extent=[a_vals.min(), a_vals.max(), b_vals.min(), b_vals.max()],
+            )
+            iax.set_xlabel(f"{coeff_a} factor", fontsize=8)
+            iax.set_ylabel(f"{coeff_b} factor", fontsize=8)
+            iax.tick_params(labelsize=7)
+
+        ax.axhline(0.0, color="k", lw=0.8, alpha=0.6)
+        ax.axvline(0.0, color="k", lw=0.8, alpha=0.6)
+        self._add_damping_grid(ax)
+        self._add_omega_grid(ax)
+        ax.grid(True, which="both", linestyle=":", alpha=0.5)
+        ax.set_xlabel("Re [1/s]")
+        ax.set_ylabel("Im [rad/s]")
+        ax.set_title(f"Pole sensitivity ({group.value})")
+
         fig.tight_layout()
-
         if savefig:
-            fig.savefig(self._figure_dir() / f"sensitivity_{group_name}_grid.png", dpi=180)
+            fig.savefig(self._figure_dir() / f"sensitivity_{group.value}_poles.png", dpi=180)
         if showfig:
             plt.show()
         else:

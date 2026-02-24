@@ -51,13 +51,16 @@ def main():
     # Stability coefficients sweep
     sa = SensitivityAnalyzer("Learjet_24")
     vals = {
-        "Cm_alpha": np.linspace(-1.0, -0.2, 10),
-        "Cm_q": np.linspace(-20.0, -5.0, 10),
-        "Cn_r": np.linspace(-2.0, -0.2, 10),
-        "Cn_beta": np.linspace(0.02, 0.25, 10),
+        "Cm_alpha": np.linspace(0.5, 20.0, 11),
+        "Cm_q": np.linspace(0.5, 20.0, 6),
     }
-    sa.plot_pzmap("long", vals, showfig=True)    # Cm_alpha + Cm_q in one grid
-    sa.plot_pzmap("latdir", vals, showfig=True)  # Cn_beta + Cn_r in one grid
+    sa.plot_pzmap(Axis.LONG, vals, showfig=True)    # Cm_alpha + Cm_q in one grid
+
+    vals = {
+        "Cn_beta": np.linspace(0.5, 12.0, 6),
+        "Cn_r": np.linspace(0.5, 20.0, 11),
+    }
+    sa.plot_pzmap(Axis.LATDIR, vals, showfig=True)  # Cn_beta + Cn_r in one grid
 
     # Initialize SAS
     mySAS = SAS(myaircraft)
