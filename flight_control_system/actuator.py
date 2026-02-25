@@ -26,11 +26,11 @@ class Actuator:
         if omega_b <= 0:
             raise ValueError("omega_b must be > 0")
         if damp < 0:
-            raise ValueError("zeta must be >= 0")
+            raise ValueError("damp must be >= 0")
         try:
             self.order = ActuatorOrder(order)
         except ValueError as exc:
-            raise ValueError("order must be 'first' or 'second'") from exc
+            raise ValueError("order must be 'ideal', 'first' or 'second'") from exc
 
         self.omega_b = omega_b
         self.damp = damp
@@ -42,6 +42,11 @@ class Actuator:
         Define actuator transfer function
         
         """
+        if self.order is ActuatorOrder.IDEAL:
+            return control.tf(
+                [self.gain], 
+                [1],
+            )
         if self.order is ActuatorOrder.FIRST:
             return control.tf(
                 [self.gain], 

@@ -209,7 +209,7 @@ class SensitivityAnalyzer:
 
             for p in points:
                 cv = p.factors[name]
-                ax.plot(p.poles.real, p.poles.imag, "x", color=cmap(norm(cv)), ms=7, mew=5)
+                ax.plot(p.poles.real, p.poles.imag, "x", color=cmap(norm(cv)), ms=7, mew=3)
 
             sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
             sm.set_array([])
@@ -228,7 +228,7 @@ class SensitivityAnalyzer:
                 h = n1(va)
                 v = 0.30 + 0.70 * n2(vb)
                 color = hsv_to_rgb((h, 0.90, v))
-                ax.plot(p.poles.real, p.poles.imag, "x", color=color, ms=7, mew=5)
+                ax.plot(p.poles.real, p.poles.imag, "x", color=color, ms=7, mew=3)
 
             # 2D legend inset
             h = np.linspace(0, 1, 200)

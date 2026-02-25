@@ -10,5 +10,6 @@ class InputChannel(str, Enum):
     RUDDER = "rudder"
 
 class ActuatorOrder(str, Enum):
+    IDEAL = "ideal"
     FIRST = "first"
     SECOND = "second"

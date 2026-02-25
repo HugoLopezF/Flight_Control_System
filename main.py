@@ -28,8 +28,8 @@ def main():
 
     # # Response analysis
     # myresponse_analyzer = TimeResponseAnalyzer(mylin_sys)
-    # t = np.linspace(0, 500, 10000)
-    # myresponse_analyzer.plot_full_response(t=t, input_type=InputSignal.STEP, showfig=True)
+    # t = np.linspace(0, 1000, 10000)
+    # myresponse_analyzer.plot_full_response(t=t, input_type=InputSignal.STEP, amp=1/4.785714285714261, showfig=True)
 
     # # Compare actuators
     # act_map = {
@@ -48,23 +48,27 @@ def main():
     # t = np.linspace(0, 3, 10000)
     # TimeResponseAnalyzer.compare_components(tf_map=sens_map, t=t, input_type=InputSignal.SAT_RAMP, amp=1, t_end=1, showfig=True)
 
-    # Stability coefficients sweep
-    sa = SensitivityAnalyzer("Learjet_24")
-    vals = {
-        "Cm_alpha": np.linspace(0.5, 20.0, 11),
-        "Cm_q": np.linspace(0.5, 20.0, 6),
-    }
-    sa.plot_pzmap(Axis.LONG, vals, showfig=True)    # Cm_alpha + Cm_q in one grid
+    # # Stability coefficients sweep
+    # sa = SensitivityAnalyzer("Learjet_24")
+    # vals = {
+    #     "Cm_alpha": np.linspace(0.5, 20.0, 11),
+    #     "Cm_q": np.linspace(0.5, 20.0, 6),
+    # }
+    # sa.plot_pzmap(Axis.LONG, vals, showfig=True)    # Cm_alpha + Cm_q in one grid
 
-    vals = {
-        "Cn_beta": np.linspace(0.5, 12.0, 6),
-        "Cn_r": np.linspace(0.5, 20.0, 11),
-    }
-    sa.plot_pzmap(Axis.LATDIR, vals, showfig=True)  # Cn_beta + Cn_r in one grid
+    # vals = {
+    #     "Cn_beta": np.linspace(0.5, 12.0, 6),
+    #     "Cn_r": np.linspace(0.5, 20.0, 11),
+    # }
+    # sa.plot_pzmap(Axis.LATDIR, vals, showfig=True)  # Cn_beta + Cn_r in one grid
 
     # Initialize SAS
-    mySAS = SAS(myaircraft)
-
+    mySAS = SAS(mylin_sys)
+    feedback_gains = {
+        'Kalpha': 1.0,
+        'Kq': 1.0,
+    }
+    mySAS.build_sas(axis=Axis.LONG, feedback_gains=feedback_gains)
 
 if __name__ == "__main__":
     main()
