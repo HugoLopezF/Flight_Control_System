@@ -4,6 +4,16 @@ class Axis(str, Enum):
     LONG = "long"
     LATDIR = "latdir"
 
+class OutputChannel(str, Enum):
+    U = "u"
+    ALPHA = "alpha"
+    THETA = "theta"
+    Q = "q"
+    BETA = "beta"
+    P = "p"
+    R = "r"
+    PHI = "phi"
+
 class InputChannel(str, Enum):
     ELEVATOR = "elevator"
     AILERON = "aileron"

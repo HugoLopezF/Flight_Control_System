@@ -7,7 +7,7 @@ class Actuator:
         omega_b: float = 25.0, 
         damp: float = 0.0, 
         gain: float = 1.0, 
-        order: ActuatorOrder | str = ActuatorOrder.FIRST,
+        order: ActuatorOrder | str = ActuatorOrder.IDEAL,
     ):
         """
         Actuator first and second order model.

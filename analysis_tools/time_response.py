@@ -2,11 +2,11 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 import control
-from analysis_tools.input_signals import InputSignal, build_input
+from .input_signals import InputSignal, build_input
 from flight_control_system.types import Axis, InputChannel
 from flight_control_system.axis_metadata import AXIS_LABELS
 from flight_control_system.state_space import LinearizedSystem
-from typing import Mapping
+from collections.abc import Mapping
 
 
 class TimeResponseAnalyzer:

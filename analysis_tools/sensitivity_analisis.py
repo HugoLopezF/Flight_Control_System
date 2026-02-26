@@ -2,9 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import control
 from pathlib import Path
-from typing import Iterable, Mapping
 from dataclasses import dataclass
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from flight_dynamics.aircraft import Aircraft
 from flight_dynamics.data_classes import LinearizationParameters
 from flight_dynamics.stability_derivatives import StabilityDerivativesCalculator

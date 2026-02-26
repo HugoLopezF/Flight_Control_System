@@ -5,7 +5,7 @@ from analysis_tools.freq_analysis import FrequencyAnalyzer
 from analysis_tools.time_response import TimeResponseAnalyzer
 from analysis_tools.input_signals import InputSignal
 from analysis_tools.sensitivity_analisis import SensitivityAnalyzer
-from flight_control_system.types import Axis 
+from flight_control_system.types import Axis, OutputChannel, InputChannel
 from flight_control_system.actuator import Actuator
 from flight_control_system.sensor import Sensor
 import numpy as np
@@ -36,7 +36,7 @@ def main():
     #     r'1st order lag $\omega_{B} = 1rad/s$': Actuator(omega_b=1.0, order='first').tf(),
     #     r'1st order lag $\omega_{B} = 25rad/s$': Actuator(omega_b=25.0, order='first').tf(),
     #     r'2nd order lag $\omega_{B} = 25rad/s$, $\xi = 0.3$': Actuator(omega_b=25.0, damp=0.3, order='second').tf(),
-    #     r'2nd order lag $\omega_{B} = 25rad/s$, $\xi = 0.8$': Actuator(omega_b=25.0, damp=0.8, order='second').tf() 
+    #     r'2nd order lag $\omega_{B} = 25rad/s$, $\xi = 0.8$': Actuator(omega_b=25.0, damp=0.8, order='second').tf()
     # }
     # FrequencyAnalyzer.compare_components(tf_map=act_map, showfig=True)
 
@@ -64,11 +64,45 @@ def main():
 
     # Initialize SAS
     mySAS = SAS(mylin_sys)
+
+    # LONG
     feedback_gains = {
-        'Kalpha': 1.0,
-        'Kq': 1.0,
+        OutputChannel.ALPHA: 1.0,
+        OutputChannel.Q: 1.0,
     }
-    mySAS.build_sas(axis=Axis.LONG, feedback_gains=feedback_gains)
+    actuators = {
+        InputChannel.ELEVATOR: Actuator(),
+    }
+    sensors = {
+        OutputChannel.ALPHA: Sensor(),
+        OutputChannel.Q: Sensor(),
+    }
+    sas_long, dl_long, K_long = mySAS.build_sas(
+        axis=Axis.LONG,
+        feedback_gains=feedback_gains,
+        actuators=actuators,
+        sensors=sensors,
+    )
+
+    # LATDIR: beta,r feedback to rudder only; DL on aileron only
+    feedback_gains = {
+        OutputChannel.BETA: 1.0,
+        OutputChannel.R: 1.0,
+    }
+    actuators = {
+        InputChannel.AILERON: Actuator(),
+        InputChannel.RUDDER: Actuator(),
+    }
+    sensors = {
+        OutputChannel.BETA: Sensor(),
+        OutputChannel.R: Sensor(),
+    }
+    sas_latdir, dl_latdir, K_latdir = mySAS.build_sas(
+        axis=Axis.LATDIR,
+        feedback_gains=feedback_gains,
+        actuators=actuators,
+        sensors=sensors,
+    )
 
 if __name__ == "__main__":
     main()

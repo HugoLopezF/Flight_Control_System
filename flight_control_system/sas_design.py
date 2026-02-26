@@ -1,6 +1,6 @@
-from flight_control_system.state_space import LinearizedSystem
-from flight_control_system.types import Axis
-from flight_control_system.actuator import Actuator
+from .state_space import LinearizedSystem
+from .types import Axis
+from .actuator import Actuator
 import control
 import numpy as np
 
@@ -22,7 +22,7 @@ def build_1dof_roll(lin_sys: LinearizedSystem):
 def compute_DL_gain(
     lin_sys: LinearizedSystem,
     axis: Axis,
-    actuator: Actuator,
+    actuator: Actuator = Actuator(),
     desired_out: float = 1.0,
 ) -> float:
     if axis is Axis.LONG:

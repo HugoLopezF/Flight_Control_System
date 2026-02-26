@@ -6,7 +6,7 @@ import matplotlib.gridspec as gridspec
 from flight_control_system.state_space import LinearizedSystem
 from flight_control_system.axis_metadata import AXIS_LABELS
 from flight_control_system.types import Axis
-from typing import Mapping
+from collections.abc import Mapping
 
 class FrequencyAnalyzer:
     AXES = (Axis.LONG, Axis.LATDIR)
