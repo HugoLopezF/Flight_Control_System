@@ -3,10 +3,11 @@ import control
 import numpy as np
 
 from .sas_design import compute_DL_gain
-from .types import Axis, InputChannel, OutputChannel, ActuatorOrder
+from .types import Axis, InputChannel, OutputChannel
 from .axis_metadata import AXIS_LABELS
 from .actuator import Actuator
 from .sensor import Sensor
+from .filter import Filter
 from .state_space import LinearizedSystem
 
 
@@ -41,15 +42,28 @@ class SAS:
     def _actuator_block(self, axis: Axis, actuators: Mapping[InputChannel, Actuator]):
         blocks = []
         for ch in AXIS_LABELS[axis].input_channels:
-            act = actuators.get(ch, Actuator(order=ActuatorOrder.IDEAL))
+            act = actuators.get(ch)
+            if act is None:
+                act = Actuator.ideal()
             blocks.append(act.tf())
         return control.append(*blocks)
-
+    
     def _sensor_block(self, axis: Axis, sensors: Mapping[OutputChannel, Sensor]):
         blocks = []
         for ch in AXIS_LABELS[axis].state_channels:
-            sens = sensors.get(ch, Sensor(delay=0.0))
+            sens = sensors.get(ch)
+            if sens is None:
+                sens = Sensor.ideal()
             blocks.append(sens.tf())
+        return control.append(*blocks)
+    
+    def _filter_block(self, axis: Axis, filters: Mapping[OutputChannel, Filter]):
+        blocks = []
+        for ch in AXIS_LABELS[axis].state_channels:
+            flt = filters.get(ch)
+            if flt is None:
+                flt = Filter.ideal()
+            blocks.append(flt.tf())
         return control.append(*blocks)
 
     def _feedback_gain_matrix(
@@ -71,11 +85,17 @@ class SAS:
     def build_sas(
         self,
         axis: Axis,
-        feedback_gains: Mapping[OutputChannel, float],
-        actuators: Mapping[InputChannel, Actuator],
-        sensors: Mapping[OutputChannel, Sensor],
+        feedback_gains: Mapping[OutputChannel, float] | None = None,
+        actuators: Mapping[InputChannel, Actuator] | None = None,
+        sensors: Mapping[OutputChannel, Sensor] | None = None,
+        filters: Mapping[OutputChannel, Filter] | None = None,
         desired_out: float = 1.0,
     ):
+        feedback_gains = {} if feedback_gains is None else feedback_gains
+        actuators = {} if actuators is None else actuators
+        sensors = {} if sensors is None else sensors
+        filters = {} if filters is None else filters
+
         # Open loop
         G = self.sys.get_sys(axis)
         A = self._actuator_block(axis, actuators)
@@ -83,16 +103,20 @@ class SAS:
 
         # Feedback sensors and gains
         S = self._sensor_block(axis, sensors)
+        T = self._filter_block(axis, filters)
         K = self._feedback_gain_matrix(axis, feedback_gains)
         K_sys = control.ss([], [], [], K)
-        H = control.series(S, K_sys)
+        H = control.series(S, T)
+        H = control.series(H, K_sys)
 
         # Closed-loop
         cl_nom = control.feedback(P, H, sign=-1)
 
         # Direct-link only on selected channel
         dl_in = self.SUPPORTED_DL_GAIN[axis]
-        dl_act = actuators.get(dl_in, Actuator(order=ActuatorOrder.IDEAL))
+        dl_act = actuators.get(dl_in)
+        if dl_act is None:
+            dl_act = Actuator.ideal()
         dl_gain = compute_DL_gain(
             lin_sys=self.sys,
             axis=axis,

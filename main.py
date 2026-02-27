@@ -41,8 +41,8 @@ def main():
     # FrequencyAnalyzer.compare_components(tf_map=act_map, showfig=True)
 
     # sens_map = {
-    #     r'Pade 1st order $\tau = 1s$': Sensor(delay=1, num_order=1, den_order=1).tf(),
-    #     r'Pade 2nd order $\tau = 1s$': Sensor(delay=1, num_order=2, den_order=2).tf()
+    #     r'Pade 1st order $\tau = 1s$': Sensor.pade(delay=1, num_order=1, den_order=1).tf(),
+    #     r'Pade 2nd order $\tau = 1s$': Sensor.pade(delay=1, num_order=2, den_order=2).tf()
     # }
     # FrequencyAnalyzer.compare_components(tf_map=sens_map, omega_limits=(1e-2, 1e1), showfig=True)
     # t = np.linspace(0, 3, 10000)
@@ -84,7 +84,7 @@ def main():
         sensors=sensors,
     )
 
-    # LATDIR: beta,r feedback to rudder only; DL on aileron only
+    # LATDIR
     feedback_gains = {
         OutputChannel.BETA: 1.0,
         OutputChannel.R: 1.0,

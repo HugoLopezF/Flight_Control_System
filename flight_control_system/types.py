@@ -23,3 +23,13 @@ class ActuatorOrder(str, Enum):
     IDEAL = "ideal"
     FIRST = "first"
     SECOND = "second"
+
+class SensorModel(str, Enum):
+    IDEAL = "ideal"
+    PADE = "pade"
+    FIRST_ORDER = "first_order"
+
+class FilterType(str, Enum):
+    IDEAL = "ideal"
+    LOWPASS = "lowpass"
+    HIGHPASS = "highpass"
