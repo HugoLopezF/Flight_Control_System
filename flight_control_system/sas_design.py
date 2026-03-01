@@ -60,7 +60,7 @@ class SASDesignPoint:
 
 
 def _feedback_channels(axis: Axis) -> tuple[OutputChannel, ...]:
-    # Local import avoids circular import (sas.py imports compute_DL_gain from here)
+    # Local import avoids circular import
     from .sas import SAS
     seen: list[OutputChannel] = []
     for outputs in SAS.SUPPORTED_FEEDBACK[axis].values():
@@ -84,9 +84,9 @@ def iter_feedback_gain_sets(
         # If not swept, keep fixed at base gain (default 0.0)
         val_lists.append(vals if vals else [float(base.get(ch, 0.0))])
 
-    for combo in product(*val_lists):
+    for comb in product(*val_lists):
         g = dict(base)
-        g.update({ch: v for ch, v in zip(chans, combo)})
+        g.update({ch: v for ch, v in zip(chans, comb)})
         yield g
 
 

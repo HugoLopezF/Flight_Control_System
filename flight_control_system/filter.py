@@ -49,9 +49,9 @@ class Filter():
 
     def tf(self) -> control.TransferFunction:
         if self.filter_type is FilterType.IDEAL:
-            return control.tf([self.gain], [1])
+            return control.tf([self.gain], [1], 0)
         if self.filter_type is FilterType.LOWPASS:
-            return control.tf([self.gain], [1 / self.omega_b, 1])
+            return control.tf([self.gain], [1 / self.omega_b, 1], 0)
         if self.filter_type is FilterType.HIGHPASS:
-            return control.tf([self.gain / self.omega_b, 0], [1 / self.omega_b, 1])
+            return control.tf([self.gain / self.omega_b, 0], [1 / self.omega_b, 1], 0)
         raise RuntimeError("Unsupported filter type")

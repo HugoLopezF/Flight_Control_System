@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from flight_control_system.state_space import LinearizedSystem
 from flight_control_system.axis_metadata import AXIS_LABELS
-from flight_control_system.types import Axis
+from flight_control_system.types import Axis, InputChannel, OutputChannel
 from collections.abc import Mapping
 
 class FrequencyAnalyzer:
@@ -279,6 +279,47 @@ class FrequencyAnalyzer:
             save_path = Path(save_path)
             save_path.parent.mkdir(parents=True, exist_ok=True)
             fig.savefig(save_path / figname)
+        if showfig:
+            plt.show()
+        else:
+            plt.close(fig)
+
+    @staticmethod
+    def compare_sas_nichols(
+        sys_map: Mapping[str, control.StateSpace],
+        axis: Axis,
+        out_ch: OutputChannel,
+        in_ch: InputChannel,
+        omega_limits: tuple[float, float] = (1e-1, 1e3),
+        showfig: bool = False,
+    ):
+        if not sys_map:
+            raise ValueError("sys_map is empty.")
+
+        i = AXIS_LABELS[axis].state_channels.index(out_ch)
+        j = AXIS_LABELS[axis].input_channels.index(in_ch)
+        omega = np.logspace(np.log10(omega_limits[0]), np.log10(omega_limits[1]), 500)
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        control.nichols_grid()  # draw grid first
+
+        for name, sys in sys_map.items():
+            n0 = len(ax.get_lines())
+            control.nichols_plot(sys[i, j], omega=omega, ax=ax)
+            new_lines = ax.get_lines()[n0:]
+
+            if not new_lines:
+                continue
+
+            # One legend entry per system
+            new_lines[0].set_label(name)
+            for ln in new_lines[1:]:
+                ln.set_label("_nolegend_")
+
+        ax.legend(loc="best")
+        ax.set_title(f"Nichols comparison: {out_ch.value}/{in_ch.value}")
+        ax.grid(True, which="both", linestyle=":", alpha=0.5)
+
         if showfig:
             plt.show()
         else:

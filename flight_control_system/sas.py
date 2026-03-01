@@ -45,7 +45,7 @@ class SAS:
             act = actuators.get(ch)
             if act is None:
                 act = Actuator.ideal()
-            blocks.append(act.tf())
+            blocks.append(control.ss(act.tf()))
         return control.append(*blocks)
     
     def _sensor_block(self, axis: Axis, sensors: Mapping[OutputChannel, Sensor]):
@@ -54,7 +54,7 @@ class SAS:
             sens = sensors.get(ch)
             if sens is None:
                 sens = Sensor.ideal()
-            blocks.append(sens.tf())
+            blocks.append(control.ss(sens.tf()))
         return control.append(*blocks)
     
     def _filter_block(self, axis: Axis, filters: Mapping[OutputChannel, Filter]):
@@ -63,7 +63,7 @@ class SAS:
             flt = filters.get(ch)
             if flt is None:
                 flt = Filter.ideal()
-            blocks.append(flt.tf())
+            blocks.append(control.ss(flt.tf()))
         return control.append(*blocks)
 
     def _feedback_gain_matrix(
@@ -97,7 +97,7 @@ class SAS:
         filters = {} if filters is None else filters
 
         # Open loop
-        G = self.sys.get_sys(axis)
+        G = control.ss(self.sys.get_sys(axis))
         A = self._actuator_block(axis, actuators)
         P = control.series(A, G)
 

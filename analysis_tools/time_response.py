@@ -107,49 +107,67 @@ class TimeResponseAnalyzer:
         else:
             plt.close(fig)
 
-    def get_aircraft_response(self, t: np.ndarray, axis: Axis, channel: InputChannel, input_type: InputSignal, amp: float = 1.0, t_end: float = 10.0) -> tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Obtain aircraft's response for selected input and axis.
-
-        :param t: Time vector.
-        :type t: np.ndarray
-        :param axis: Axis to get response from.
-        :type axis: Axis
-        :param channel: Input channel for this axis.
-        :type channel: InputChannel
-        :param input_type: Input signal type.
-        :type input_type: InputSignal
-        :param amp: Input signal amplitude (nondimensional).
-        :type amp: float
-        :param t_end: Time instant at which the ramp stops (if ramp).
-        :type t_end: float
-
-        :rtype: tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]
-        """
-        # Get dynamic system from matrices
-        sys = self.sys.get_sys(axis)
+    def _get_mimo_response(
+        self,
+        sys: control.StateSpace,
+        t: np.ndarray,
+        axis: Axis,
+        channel: InputChannel,
+        input_type: InputSignal,
+        amp: float = 1.0,
+        t_end: float = 10.0,
+    ) -> tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
         labels = self._labels(axis)
 
-        # Check channel and convert input to rad
         if channel not in labels.input_channels:
             allowed = ", ".join(ch.value for ch in labels.input_channels)
             raise ValueError(f"Invalid channel '{channel.value}' for axis '{axis.value}'. Allowed: {allowed}")
-        
-        # Fill input channels
-        u = np.zeros((sys.ninputs, len(t)))
-        amp_rad = np.deg2rad(amp)
-        idx = labels.input_channels.index(channel)
-        u[idx, :] = build_input(signal=input_type, t=t, amp=amp_rad, t_end=t_end)
 
-        # Calculate response
+        if sys.ninputs != len(labels.input_channels):
+            raise ValueError(
+                f"System input count ({sys.ninputs}) does not match axis '{axis.value}' "
+                f"input labels ({len(labels.input_channels)})."
+            )
+
+        u = np.zeros((sys.ninputs, len(t)))
+        idx = labels.input_channels.index(channel)
+        u[idx, :] = build_input(signal=input_type, t=t, amp=np.deg2rad(amp), t_end=t_end)
+
         t_out, y_out = control.forced_response(sys, t, u)
-        # Convert response back to degrees except for u channel (m/(s*rad))
+        y_out = np.atleast_2d(y_out)
+
+        # keep same convention you already use
         if axis is Axis.LONG:
             y_out[1:, :] *= 180 / np.pi
         else:
             y_out *= 180 / np.pi
 
         return sys, t_out, y_out, u
+
+    def get_aircraft_response(
+        self,
+        t: np.ndarray,
+        axis: Axis,
+        channel: InputChannel,
+        input_type: InputSignal,
+        amp: float = 1.0,
+        t_end: float = 10.0,
+    ):
+        sys = self.sys.get_sys(axis)
+        return self._get_mimo_response(sys, t, axis, channel, input_type, amp, t_end)
+
+
+    def get_sas_response(
+        self,
+        sas_sys: control.StateSpace,
+        t: np.ndarray,
+        axis: Axis,
+        channel: InputChannel,
+        input_type: InputSignal,
+        amp: float = 1.0,
+        t_end: float = 10.0,
+    ):
+        return self._get_mimo_response(sas_sys, t, axis, channel, input_type, amp, t_end)
         
     def plot_aircraft_response(self, t: np.ndarray, axis: Axis, channel: InputChannel, input_type: InputSignal, amp: float = 1.0, t_end: float = 10.0, savefig: bool = False, showfig: bool = False) -> None:
         """
@@ -204,6 +222,50 @@ class TimeResponseAnalyzer:
         if savefig:
             figname = self.sys.aircraft.model + f'{amp}_deg_{input_type.value}_{channel.value}_response.png'
             fig.savefig(self._figure_dir() / figname)
+        if showfig:
+            plt.show()
+        plt.close(fig)
+
+    def plot_sas_response(
+        self,
+        sas_sys: control.StateSpace,
+        t: np.ndarray,
+        axis: Axis,
+        channel: InputChannel,
+        input_type: InputSignal,
+        amp: float = 1.0,
+        t_end: float = 10.0,
+        savefig: bool = False,
+        showfig: bool = False,
+    ):
+        sys, t_out, y_out, u = self.get_sas_response(
+            sas_sys=sas_sys, t=t, axis=axis, channel=channel,
+            input_type=input_type, amp=amp, t_end=t_end
+        )
+
+        labels = self._labels(axis)
+        sys.input_labels = [f'${v}$' for v in labels.inputs]
+        sys.output_labels = [f'${v}$' for v in labels.states]
+
+        fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
+        fig.suptitle(f'SAS response for {axis.value} axis to {amp}deg {input_type.value} in {channel.value}')
+
+        for i, ax in enumerate(np.atleast_1d(axes)):
+            y = y_out[i, :]
+            ax.plot(t_out, y)
+            n_tail = max(1, int(0.1 * len(y)))
+            y_ss = float(np.mean(y[-n_tail:]))
+            ax.axhline(y_ss, color="red", linestyle="--", linewidth=1.2, label=f"ss = {y_ss:.3g}")
+            ax.set_ylabel(sys.output_labels[i])
+            ax.minorticks_on()
+            ax.grid(True, which="major", linestyle="-", alpha=0.5)
+            ax.grid(True, which="minor", linestyle=":", alpha=0.35)
+            ax.legend(loc="best")
+
+        np.atleast_1d(axes)[-1].set_xlabel("$t$ [s]")
+
+        if savefig:
+            fig.savefig(self._figure_dir() / f"SAS_{axis.value}_{channel.value}_{input_type.value}_{amp}deg.png")
         if showfig:
             plt.show()
         plt.close(fig)

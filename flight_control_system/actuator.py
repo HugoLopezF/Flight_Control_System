@@ -60,12 +60,13 @@ class Actuator:
 
     def tf(self) -> control.TransferFunction:
         if self.order is ActuatorOrder.IDEAL:
-            return control.tf([self.gain], [1])
+            return control.tf([self.gain], [1], 0)
         if self.order is ActuatorOrder.FIRST:
-            return control.tf([self.gain], [1 / self.omega_b, 1])
+            return control.tf([self.gain], [1 / self.omega_b, 1], 0)
         if self.order is ActuatorOrder.SECOND:
             return control.tf(
                 [self.gain * self.omega_b**2],
                 [1, 2 * self.damp * self.omega_b, self.omega_b**2],
+                0,
             )
         raise RuntimeError("Unsupported actuator order")

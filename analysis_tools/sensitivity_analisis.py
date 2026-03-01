@@ -8,7 +8,7 @@ from flight_dynamics.aircraft import Aircraft
 from flight_dynamics.data_classes import LinearizationParameters
 from flight_dynamics.stability_derivatives import StabilityDerivativesCalculator
 from flight_control_system.state_space import LinearizedSystem
-from flight_control_system.types import Axis
+from flight_control_system.types import Axis, OutputChannel
 from itertools import product
 from matplotlib.colors import hsv_to_rgb
 
@@ -258,6 +258,76 @@ class SensitivityAnalyzer:
         fig.tight_layout()
         if savefig:
             fig.savefig(self._figure_dir() / f"sensitivity_{group.value}_poles.png", dpi=180)
+        if showfig:
+            plt.show()
+        else:
+            plt.close(fig)
+
+    def plot_sas_pzmap(
+        self,
+        points: list,  # list[SASDesignPoint]
+        axis: Axis,
+        gain_a: OutputChannel,
+        gain_b: OutputChannel,
+        savefig: bool = False,
+        showfig: bool = False,
+    ):
+        fig, ax = plt.subplots(figsize=(9, 6))
+
+        vals_a = np.array([p.feedback_gains[gain_a] for p in points], dtype=float)
+        vals_b = np.array([p.feedback_gains[gain_b] for p in points], dtype=float)
+
+        varied_a = len(np.unique(vals_a)) > 1
+        varied_b = len(np.unique(vals_b)) > 1
+
+        if varied_a and varied_b:
+            n1 = plt.Normalize(vals_a.min(), vals_a.max() if not np.isclose(vals_a.min(), vals_a.max()) else vals_a.min() + 1.0)
+            n2 = plt.Normalize(vals_b.min(), vals_b.max() if not np.isclose(vals_b.min(), vals_b.max()) else vals_b.min() + 1.0)
+            for p, va, vb in zip(points, vals_a, vals_b):
+                color = hsv_to_rgb((n1(va), 0.90, 0.30 + 0.70 * n2(vb)))
+                ax.plot(p.poles.real, p.poles.imag, "x", color=color, ms=7, mew=3)
+            # 2D legend inset
+            h = np.linspace(0, 1, 200)
+            v = np.linspace(0, 1, 200)
+            H, V = np.meshgrid(h, v)
+            legend_rgb = hsv_to_rgb(np.dstack((H, np.full_like(H, 0.90), 0.30 + 0.70 * V)))
+
+            iax = ax.inset_axes([0.62, 0.06, 0.33, 0.33])
+            iax.imshow(
+                legend_rgb,
+                origin="lower",
+                aspect="auto",
+                extent=[vals_a.min(), vals_a.max(), vals_a.min(), vals_a.max()],
+            )
+            iax.set_xlabel(f"{gain_a.value} gain", fontsize=8)
+            iax.set_ylabel(f"{gain_b.value} gain", fontsize=8)
+            iax.tick_params(labelsize=7)
+        else:
+            name = gain_a if varied_a else gain_b
+            cvals = np.array([p.feedback_gains[name] for p in points], dtype=float)
+            vmin, vmax = cvals.min(), cvals.max()
+            if np.isclose(vmin, vmax):
+                vmax = vmin + 1.0
+            norm = plt.Normalize(vmin, vmax)
+            cmap = plt.get_cmap("viridis")
+            for p in points:
+                ax.plot(p.poles.real, p.poles.imag, "x", color=cmap(norm(p.feedback_gains[name])), ms=7, mew=3)
+            sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+            sm.set_array([])
+            fig.colorbar(sm, ax=ax, pad=0.02, label=f"{name.value} gain")
+
+        ax.axhline(0.0, color="k", lw=0.8, alpha=0.6)
+        ax.axvline(0.0, color="k", lw=0.8, alpha=0.6)
+        self._add_damping_grid(ax)
+        self._add_omega_grid(ax)
+        ax.grid(True, which="both", linestyle=":", alpha=0.5)
+        ax.set_xlabel("Re [1/s]")
+        ax.set_ylabel("Im [rad/s]")
+        ax.set_title(f"SAS pole sensitivity ({axis.value})")
+
+        fig.tight_layout()
+        if savefig:
+            fig.savefig(self._figure_dir() / f"sas_sensitivity_{axis.value}_poles.png", dpi=180)
         if showfig:
             plt.show()
         else:

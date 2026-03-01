@@ -85,14 +85,14 @@ class Sensor:
             if self.delay == 0:
                 return control.tf([self.gain], [1])
             num, den = control.pade(self.delay, self.den_order, self.num_order)
-            return self.gain * control.tf(num, den)
+            return self.gain * control.tf(num, den, 0)
 
         if self.model is SensorModel.FIRST_ORDER:
             if self.tau == 0:
-                return control.tf([self.gain], [1])
-            return control.tf([self.gain], [self.tau, 1])
+                return control.tf([self.gain], [1], 0)
+            return control.tf([self.gain], [self.tau, 1], 0)
         
         if self.model is SensorModel.IDEAL:
-            return control.tf([self.gain], [1])
+            return control.tf([self.gain], [1], 0)
 
         raise RuntimeError("Unsupported sensor model")
