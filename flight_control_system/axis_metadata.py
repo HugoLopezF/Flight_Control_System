@@ -4,6 +4,21 @@ from .types import Axis, InputChannel, OutputChannel
 
 @dataclass(frozen=True)
 class AxisLabels:
+    """
+    Axis input and output (state) channels labels.
+
+    Attributes
+    ----------
+    states : tuple[str, ...]
+        Output (state) channels LaTeX-like labels.
+    state_channels : tuple[OutputChannel, ...]
+        Output (state) channels variables.
+    inputs : tuple[str, ...]
+        Input channels LaTeX-like labels.
+    input_channels : tuple[InputChannel, ...]
+        Input channels variables.
+    """
+        
     states: tuple[str, ...]
     state_channels: tuple[OutputChannel, ...]
     inputs: tuple[str, ...]

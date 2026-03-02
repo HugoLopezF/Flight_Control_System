@@ -4,14 +4,71 @@ import control
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from flight_control_system.state_space import LinearizedSystem
-from flight_control_system.axis_metadata import AXIS_LABELS
+from flight_control_system.axis_metadata import AXIS_LABELS, AxisLabels
 from flight_control_system.types import Axis, InputChannel, OutputChannel
 from collections.abc import Mapping
 
 class FrequencyAnalyzer:
+    """
+    Frequency analyzer class.
+
+    Creates Bode and Nichols plots for aircraft, components, SAS and AP.
+
+    Attributes
+    ----------
+    AXES : tuple
+        Dynamic system axes.
+    fig_root : str | Path
+        Figure root saving path (default is "flight_dynamics").
+    labels : dict[Axis, AxisLabels]
+        Axis input and output (state) channels labels.
+    bode_lims : dict[Axis, list]
+        Bode plot x-axis limits in rad/s.
+
+    Methods
+    ----------
+    _labels()
+        Obtain axis labels.
+    _clean_label()
+        Clean labels for figure naming.
+    _figure_dir()
+        Construct figure saving directory.
+    channel_metrics()
+        Calculate frequency-domain metrics for channel y_i / u_j.
+    plot_all()
+        Plot system's Bode and Nichols plots for all axes.
+    plot_freq_analysis()
+        Plot system's Bode and Nichols plots for the selected axis.
+    plot_bode()
+        Plot system's Bode plots for for the selected axis.
+    plot_nichols()
+        Plot system's Nichols plots for for the selected axis.
+    compare_components()
+        Compare components frequency response in a Bode plot.
+    compare_sas_nichols()
+        Compare Stability Augmentation System Nichols plot when varying feedback gains.
+    """
+        
     AXES = (Axis.LONG, Axis.LATDIR)
 
     def __init__(self, lin_sys: LinearizedSystem, fig_root: str | Path = "flight_dynamics"):
+        """
+        Frequency analyzer class.
+
+        Creates Bode and Nichols plots for aircraft, components, SAS and AP.
+
+        Attributes
+        ----------
+        AXES : tuple
+            Dynamic system axes.
+        fig_root : Aircraft, optional
+            Figure root saving path (default is "flight_dynamics").
+        labels : dict[Axis, AxisLabels]
+            Axis input and output (state) channels labels.
+        bode_lims : dict[Axis, list]
+            Bode plot x-axis limits in rad/s.
+        """
+            
         self.sys = lin_sys
         self.fig_root = Path(fig_root)
         self.labels = AXIS_LABELS
@@ -20,13 +77,21 @@ class FrequencyAnalyzer:
             Axis.LATDIR: [1e-6, 1e2],
         }
 
-    def _labels(self, axis: Axis):
+    def _labels(self, axis: Axis) -> AxisLabels:
         """
         Obtain axis labels.
 
-        :param axis: Axis to get labels for.
-        :type axis: Axis
+        Attributes
+        ----------
+        axis : Axis
+            Axis to get labels for.
+
+        Returns
+        ----------
+        AxisLabels
+            Axis labels.
         """
+
         return self.labels[axis]
     
     @staticmethod
@@ -34,30 +99,52 @@ class FrequencyAnalyzer:
         """
         Clean labels for figure naming.
 
-        :param label: Label to clean.
-        :type label: str
+        Attributes
+        ----------
+        label : str
+            Label to clean.
+
+        Returns
+        ----------
+        str
+            Cleaned label.
         """
+
         return label.replace("\\Delta", "").replace("\\", "").replace(" ", "")
     
     def _figure_dir(self) -> Path:
         """
         Construct figure saving directory.
+
+        Returns
+        ----------
+        Path
+            Figure saving directory.
         """
+
         figdir = self.fig_root / self.sys.aircraft.model
         figdir.mkdir(parents=True, exist_ok=True)
         return figdir
     
     def channel_metrics(self, axis: Axis, i: int, j: int) -> dict:
         """
-        Return frequency-domain metrics for channel y_i / u_j.
+        Calculate frequency-domain metrics for channel y_i / u_j.
 
-        :param axis: Axis to analyze.
-        :type axis: Axis
-        :param i: State index to analyze.
-        :type i: int
-        :param j: Input index to analyze.
-        :type j: int
+        Attributes
+        ----------
+        axis : Axis
+            Axis to analyze.
+        i : int
+            Output/State index to analyze.
+        j : int
+            Input index to analyze.
+
+        Returns
+        ----------
+        dict
+            Frequency-domain metrics for channel y_i / u_j.
         """
+
         gij = self.sys.get_sys(axis)[i, j]
 
         poles = np.asarray(control.poles(gij), dtype=complex)
@@ -93,11 +180,14 @@ class FrequencyAnalyzer:
         """
         Plot system's Bode and Nichols plots for all axes.
 
-        :param savefig: Option to save figure.
-        :type savefig: bool
-        :param showfig: Option to show figure.
-        :type showfig: bool
+        Attributes
+        ----------
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
         """
+
         for axis in self.AXES:
             self.plot_freq_analysis(axis=axis, savefig=savefig, showfig=showfig)
 
@@ -105,13 +195,16 @@ class FrequencyAnalyzer:
         """
         Plot system's Bode and Nichols plots for the selected axis.
 
-        :param axis: Axis to analyze.
-        :type axis: Axis
-        :param savefig: Option to save figure.
-        :type savefig: bool
-        :param showfig: Option to show figure.
-        :type showfig: bool
+        Attributes
+        ----------
+        axis : Axis
+            Axis to analyze.
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
         """
+
         # Define dynamic system
         sys = self.sys.get_sys(axis)
         labels = self._labels(axis)
@@ -181,13 +274,16 @@ class FrequencyAnalyzer:
         """
         Plot system's Bode plots for for the selected axis.
 
-        :param axis: Axis to analyze.
-        :type axis: Axis
-        :param savefig: Option to save figure.
-        :type savefig: bool
-        :param showfig: Option to show figure.
-        :type showfig: bool
+        Attributes
+        ----------
+        axis : Axis
+            Axis to analyze.
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
         """
+
         # Define dynamic system
         sys = self.sys.get_sys(axis)
         labels = self._labels(axis)
@@ -215,13 +311,16 @@ class FrequencyAnalyzer:
         """
         Plot system's Nichols plots for for the selected axis.
 
-        :param axis: Axis to analyze.
-        :type axis: Axis
-        :param savefig: Option to save figure.
-        :type savefig: bool
-        :param showfig: Option to show figure.
-        :type showfig: bool
+        Attributes
+        ----------
+        axis : Axis
+            Axis to analyze.
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
         """
+
         # Define dynamic system
         sys = self.sys.get_sys(axis)
         labels = self._labels(axis)
@@ -249,11 +348,30 @@ class FrequencyAnalyzer:
     def compare_components(
         tf_map: Mapping[str, control.TransferFunction],
         omega_limits: tuple[float, float] = (1e-1, 1e3),
-        title: str = "Actuator Bode Comparison",
+        title: str = "Actuator Bode Comparison", # TODO: Change with component type
         showfig: bool = False,
         savefig: bool = False,
         save_path: str | Path | None = None,
-    ):
+    ) -> None:
+        """
+        Compare components frequency response in a Bode plot.
+
+        Attributes
+        ----------
+        tf_map : Mapping[str, control.TransferFunction]
+            Transfer functions of components.
+        omega_limits : tuple[float, float], optional
+            Bode plot x-axis limits in rad/s (default is (1e-1, 1e3)).
+        title : str, optional
+            Figure title (default is "Actuator Bode Comparison").
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
+        save_path : str | Path | None, optional
+            Figure saving path (default is None).
+        """
+                
         if not tf_map:
             raise ValueError("tf_map is empty.")
         else:
@@ -291,8 +409,36 @@ class FrequencyAnalyzer:
         out_ch: OutputChannel,
         in_ch: InputChannel,
         omega_limits: tuple[float, float] = (1e-1, 1e3),
+        title: str = "SAS Nichols plot sensitivity analysis",
         showfig: bool = False,
-    ):
+        savefig: bool = False,
+        save_path: str | Path | None = None,
+    ) -> None:
+        """
+        Compare Stability Augmentation System Nichols plot when varying feedback gains.
+
+        Attributes
+        ----------
+        sys_map : Mapping[str, control.StateSpace]
+            Stability augmentation systems to compare.
+        axis : Axis
+            Axis to analyze.
+        out_ch : OutputChannel
+            Output/State channel to analyze.
+        in_ch : InputChannel
+            Input channel to analyze.
+        omega_limits : tuple[float, float], optional
+            Bode plot x-axis limits in rad/s (default is (1e-1, 1e3)).
+        title : str, optional
+            Figure title (default is "SAS Nichols plot sensitivity analysis").
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
+        save_path : str | Path | None, optional
+            Figure saving path (default is None).
+        """
+                
         if not sys_map:
             raise ValueError("sys_map is empty.")
 
@@ -301,7 +447,7 @@ class FrequencyAnalyzer:
         omega = np.logspace(np.log10(omega_limits[0]), np.log10(omega_limits[1]), 500)
 
         fig, ax = plt.subplots(figsize=(8, 6))
-        control.nichols_grid()  # draw grid first
+        control.nichols_grid()  # Draw grid first
 
         for name, sys in sys_map.items():
             n0 = len(ax.get_lines())
@@ -316,10 +462,16 @@ class FrequencyAnalyzer:
             for ln in new_lines[1:]:
                 ln.set_label("_nolegend_")
 
+        fig.suptitle(title)
         ax.legend(loc="best")
         ax.set_title(f"Nichols comparison: {out_ch.value}/{in_ch.value}")
         ax.grid(True, which="both", linestyle=":", alpha=0.5)
 
+        if savefig and save_path is not None:
+            figname = f'{title.replace(" ", "_")}.png'
+            save_path = Path(save_path)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(save_path / figname)
         if showfig:
             plt.show()
         else:

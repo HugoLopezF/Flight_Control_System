@@ -5,6 +5,7 @@ import control
 from math import sin, cos, tan
 from dataclasses import dataclass
 from .types import Axis
+from flight_dynamics.aircraft import Aircraft
 
 
 @dataclass(frozen=True)
@@ -33,35 +34,84 @@ class ChannelTF:
 
 
 class LinearizedSystem:
+    """
+    Aircraft's linearized dynamic system.
+
+    Attributes
+    ----------
+    AXES : tuple
+        Dynamic system axes.
+    aircraft : Aircraft
+        Aircraft to analyze.
+    _raw : dict[Axis, LinearizedMatrices]
+        Raw form matrices of the linearized dynamic system as in E * x_dot(t) = A' * x(t) + B' * u(t).
+    _std : dict[Axis, StandardMatrices]
+        Standard form matrices of the linearized dynamic system as in x_dot(t) = A * x(t) + B * u(t).
+    _tf : dict[Axis, sp.Matrix]
+        Transfer functions of the linearized dynamic system.
+
+    Methods
+    ----------
+    get_TF()
+        
+    get_sys()
+        Calculate dynamic space state system.
+    compute_all_axes()
+        Calculate all standard form space state matrices.
+    standard_matrices()
+        Calculate standard form space state matrices for the selected axis.
+    linearized_matrices()
+        Calculate linearized system matrices for the selected axis.
+    get_long_matrices()
+        Calculate longitudinal space state matrices.
+    get_latdir_matrices()
+        Calculate lateral-directional space state matrices.
+    """
+
     AXES = (Axis.LONG, Axis.LATDIR)
 
-    def __init__(self, aircraft):
+    def __init__(self, aircraft: Aircraft):
+        """
+        Aircraft's linearized dynamic system.
+
+        Attributes
+        ----------
+        AXES : tuple
+            Dynamic system axes.
+        aircraft : Aircraft
+            Aircraft to analyze.
+        _raw : dict[Axis, LinearizedMatrices]
+            Raw form matrices of the linearized dynamic system as in E * x_dot(t) = A' * x(t) + B' * u(t).
+        _std : dict[Axis, StandardMatrices]
+            Standard form matrices of the linearized dynamic system as in x_dot(t) = A * x(t) + B * u(t).
+        _tf : dict[Axis, sp.Matrix]
+            Transfer functions of the linearized dynamic system.
+        """
+
         self.aircraft = aircraft
         self._raw: dict[Axis, LinearizedMatrices] = {}
         self._std: dict[Axis, StandardMatrices] = {}
         self._tf: dict[Axis, sp.Matrix] = {}
 
 
-    def get_TF(self): # TODO
-        if not self.std_matrices:
-            self.get_std_matrices()
-        s = sp.Symbol('s')
-        for ax in ['long', 'latdir']:
-            A = self.std_matrices[ax]['A']
-            B = self.std_matrices[ax]['B']
-            I = np.eye(A.shape[0])
-            self.TF[ax] = sp.Matrix(sp.Matrix(s * I - A).inv().applyfunc(sp.simplify) @ B).applyfunc(sp.simplify)
-
+    def get_TF(self): # TODO: Retrieve transfer functions efficiently
+        pass
 
     def get_sys(self, axis: Axis) -> control.StateSpace:
         """
         Calculate dynamic space state system.
 
-        :param axis: Axis to obtain matrices for.
-        :type axis: string
+        Attributes
+        ----------
+        axis : Axis
+            Axis to obtain matrices for.
 
-        :rtype: control.statesp.StateSpace
+        Returns
+        ----------
+        control.StateSpace
+            Dynamic system state space.
         """
+
         # Calculate system matrices
         std = self.standard_matrices(axis)
         A, B = std.A, std.B
@@ -78,6 +128,7 @@ class LinearizedSystem:
         Calculate all standard form space state matrices.
 
         """
+
         for axis in self.AXES:
             self.standard_matrices(axis)
 
@@ -86,11 +137,18 @@ class LinearizedSystem:
         """
         Calculate standard form space state matrices for the selected axis.
 
-        :param axis: Axis to obtain matrices for.
-        :type axis: string
+        Attributes
+        ----------
+        axis : Axis
+            Axis to obtain matrices for.
 
-        :rtype: StandardMatrices
+        Returns
+        ----------
+        StandardMatrices
+            Standard form matrices of the linearized dynamic system 
+            as in x_dot(t) = A * x(t) + B * u(t).
         """
+        
         if axis not in self._std:
             raw = self.linearized_matrices(axis)
             A = np.linalg.solve(raw.E, raw.A_prime)
@@ -103,11 +161,18 @@ class LinearizedSystem:
         """
         Calculate linearized system matrices for the selected axis.
 
-        :param axis: Axis to obtain matrices for.
-        :type axis: string
+        Attributes
+        ----------
+        axis : Axis
+            Axis to obtain matrices for.
 
-        :rtype: LinearizedMatrices
+        Returns
+        ----------
+        LinearizedMatrices
+            Raw form matrices of the linearized dynamic system
+            as in E * x_dot(t) = A' * x(t) + B' * u(t).
         """
+
         if axis not in self._raw:
             if axis is Axis.LONG:
                 E, A_prime, B_prime = self.get_long_matrices()
@@ -121,10 +186,20 @@ class LinearizedSystem:
 
     def get_long_matrices(self) -> tuple[np.array, np.array, np.array]:
         """
-        Calculate and longitudinal space state matrices.
+        Calculate longitudinal space state matrices.
 
-        :rtype: tuple[np.array, np.array, np.array]
+        Attributes
+        ----------
+        axis : Axis
+            Axis to obtain matrices for.
+
+        Returns
+        ----------
+        tuple[np.array, np.array, np.array]
+            Raw form matrices of the linearized dynamic system
+            as in E * x_dot(t) = A' * x(t) + B' * u(t).
         """
+
         W = self.aircraft.mass_prop.W
         u_s = self.aircraft.flight_cond.u_s
         theta_s = self.aircraft.flight_cond.theta_s
@@ -168,10 +243,20 @@ class LinearizedSystem:
     
     def get_latdir_matrices(self) -> tuple[np.array, np.array, np.array]:
         """
-        Calculate and lateral-directional space state matrices.
+        Calculate lateral-directional space state matrices.
 
-        :rtype: tuple[np.array, np.array, np.array]
+        Attributes
+        ----------
+        axis : Axis
+            Axis to obtain matrices for.
+
+        Returns
+        ----------
+        tuple[np.array, np.array, np.array]
+            Raw form matrices of the linearized dynamic system
+            as in E * x_dot(t) = A' * x(t) + B' * u(t).
         """
+
         W = self.aircraft.mass_prop.W
         u_s = self.aircraft.flight_cond.u_s
         theta_s = self.aircraft.flight_cond.theta_s

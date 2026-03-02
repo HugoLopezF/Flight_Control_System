@@ -11,13 +11,50 @@ from pathlib import Path
 import json
 from utilities.constants import g 
 from utilities.unit_conversion import LengthUnit, WeightUnit, AngleUnit, convert_length, convert_weight, convert_angle
-from .data_classes import (Geometry, MassProperties, FlightCondition, ConditionCoefficients, LongitudinalCoefficients, 
-                           LateralDirectionalCoefficients, StabilityCoefficients, LinearizationParameters, StabilityDerivatives)
+from .data_classes import (
+    Geometry, MassProperties, FlightCondition, ConditionCoefficients, LongitudinalCoefficients, 
+    LateralDirectionalCoefficients, StabilityCoefficients, LinearizationParameters, StabilityDerivatives
+)
 from .stability_derivatives import StabilityDerivativesCalculator
 
 
 class Aircraft:
-    def __init__(self, model):
+    """
+    Aircraft object containing relevant parameters and data.
+
+    Attributes
+    ----------
+    model : str
+        Aircraft model.
+    geom : Geometry
+        Aircraft's geometry data.
+    mass_prop : MassProperties
+        Aircraft's mass properties data.
+    flight_cond : FlightCondition
+        Aircraft's flight condition data.
+    cond_coeffs : ConditionCoefficients
+        Aircraft's flight condition coefficients data.
+    stab_coeffs : StabilityCoefficients
+        Aircraft's stability coefficients data.
+    stab_der : StabilityDerivatives
+        Aircraft's stability derivatives data.
+
+    Methods
+    ----------
+    convert_to_SI()
+        Convert every aircraft parameter to SI units.
+    """
+
+    def __init__(self, model: str):
+        """
+        Aircraft object initialization.
+
+        Parameters
+        ----------
+        model : str
+            Aircraft model.
+        """
+
         main_dir = Path.cwd()
 
         self.model = model
@@ -52,15 +89,21 @@ class Aircraft:
         self.stab_der = StabilityDerivatives(long=long, latdir=latdir)
 
 
-    def convert_to_SI(self, aircraft_data) -> dict:
+    def convert_to_SI(self, aircraft_data: dict) -> dict:
         """
-        Convert every parameter to SI units.
+        Convert every aircraft parameter to SI units.
 
-        :param aircraft_data: Aircraft data.
-        :type aircraft_data: dict
+        Parameters
+        ----------
+        aircraft_data : dict
+            Aircraft geometry, mass and flight condition data.
 
-        :rtype: dict
+        Returns
+        -------
+        dict
+            Converted aircraft parameters.
         """
+
         # Geometry
         aircraft_data['geom']['S'] = convert_length(convert_length(aircraft_data['geom']['S'], from_=LengthUnit.FEET), from_=LengthUnit.FEET)
         aircraft_data['geom']['c'] = convert_length(aircraft_data['geom']['c'], from_=LengthUnit.FEET)

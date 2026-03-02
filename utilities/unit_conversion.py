@@ -117,60 +117,108 @@ _FORCE_TO_NEWTONS = {
 }
 
 
-def _convert_linear(value, from_unit, to_unit, factors):
+def _convert_linear(
+    value: float, 
+    from_unit: WeightUnit | LengthUnit | TemperatureUnit | SpeedUnit | ForceUnit | AngleUnit, 
+    to_unit: WeightUnit | LengthUnit | TemperatureUnit | SpeedUnit | ForceUnit | AngleUnit, 
+    factors: dict,
+) -> float:
     """
     Convert units where every unit scales linearly from a base unit.
 
+    Parameters
+    ----------
+    value :float
+        Value to convert.
+    from_unit : WeightUnit | LengthUnit | TemperatureUnit | SpeedUnit | ForceUnit | AngleUnit
+        Input unit.
+    to_unit : WeightUnit | LengthUnit | TemperatureUnit | SpeedUnit | ForceUnit | AngleUnit
+        Output unit.
+    factors : dict
+        Factor dictionary for the selected unit type.
+
+    Returns
+    -------
+    float
+        Converted value.
     """
+
     return value * factors[from_unit] / factors[to_unit]
 
 
-def convert_weight(value, from_=WeightUnit.KILOGRAMS, to=WeightUnit.KILOGRAMS):
+def convert_weight(
+    value, 
+    from_: WeightUnit=WeightUnit.KILOGRAMS, 
+    to: WeightUnit=WeightUnit.KILOGRAMS,
+) -> float:
     """
     Convert weight to the desired unit.
 
-    :param value: Weight value to convert.
-    :type value: float
-    :param from_: Input weight unit.
-    :type from_: :class:`utilities.unit_conversion.WeightUnit`, optional
-    :param to: Output weight unit.
-    :type to: :class:`utilities.unit_conversion.WeightUnit`, optional
-    :return: Converted value
-    :rtype: float
+    Parameters
+    ----------
+    value :float
+        Weight value to convert.
+    from_unit : WeightUnit
+        Input weight unit.
+    to_unit : WeightUnit
+        Output weight unit.
+
+    Returns
+    -------
+    float
+        Converted value.
     """
 
     return _convert_linear(value, from_, to, _WEIGHT_TO_KILOGRAMS)
 
 
-def convert_length(value, from_=LengthUnit.METERS, to=LengthUnit.METERS):
+def convert_length(
+    value, 
+    from_: LengthUnit=LengthUnit.METERS, 
+    to: LengthUnit=LengthUnit.METERS,
+) -> float:
     """
     Convert length to the desired unit.
 
-    :param value: Length value to convert.
-    :type value: float
-    :param from_: Input length unit.
-    :type from_: :class:`utilities.unit_conversion.LengthUnit`, optional
-    :param to: Output length unit.
-    :type to: :class:`utilities.unit_conversion.LengthUnit`, optional
-    :return: Converted value
-    :rtype: float
+    Parameters
+    ----------
+    value :float
+        Length value to convert.
+    from_unit : LengthUnit
+        Input length unit.
+    to_unit : LengthUnit
+        Output length unit.
+
+    Returns
+    -------
+    float
+        Converted value.
     """
 
     return _convert_linear(value, from_, to, _LENGTH_TO_METERS)
 
 
-def convert_temperature(value, from_=TemperatureUnit.KELVIN, to=TemperatureUnit.KELVIN):
+def convert_temperature(
+    value, 
+    from_: TemperatureUnit=TemperatureUnit.KELVIN, 
+    to: TemperatureUnit=TemperatureUnit.KELVIN
+) -> float:
     """
     Convert temperature to the desired unit.
 
-    :param value: Temperature value to convert.
-    :type value: float
-    :param from_: Input temperature unit.
-    :type from_: :class:`utilities.unit_conversion.TemperatureUnit`, optional
-    :param to: Output temperature unit.
-    :type to: :class:`utilities.unit_conversion.TemperatureUnit`, optional
-    :return: Converted value
-    :rtype: float
+    Parameters
+    ----------
+    value :float
+        Temperature value to convert.
+    from_unit : TemperatureUnit
+        Input temperature unit.
+    to_unit : TemperatureUnit
+        Output temperature unit.
+
+    Returns
+    -------
+    float
+        Converted value.
     """
 
     converted = value
@@ -188,52 +236,79 @@ def convert_temperature(value, from_=TemperatureUnit.KELVIN, to=TemperatureUnit.
     return converted
 
 
-def convert_speed(value, from_=SpeedUnit.METER_PER_SECOND, to=SpeedUnit.METER_PER_SECOND):
+def convert_speed(
+    value, 
+    from_: SpeedUnit=SpeedUnit.METER_PER_SECOND, 
+    to: SpeedUnit=SpeedUnit.METER_PER_SECOND
+) -> float:
     """
     Convert speed to the desired unit.
 
-    :param value: Speed value to convert.
-    :type value: float
-    :param from_: Input speed unit.
-    :type from_: :class:`utilities.unit_conversion.SpeedUnit`, optional
-    :param to: Output speed unit.
-    :type to: :class:`utilities.unit_conversion.SpeedUnit`, optional
-    :return: Converted value
-    :rtype: float
+    Parameters
+    ----------
+    value :float
+        Speed value to convert.
+    from_unit : SpeedUnit
+        Input speed unit.
+    to_unit : SpeedUnit
+        Output speed unit.
+
+    Returns
+    -------
+    float
+        Converted value.
     """
 
     return _convert_linear(value, from_, to, _SPEED_TO_METERS_PER_SECOND)
 
 
-def convert_force(value, from_=ForceUnit.NEWTONS, to=ForceUnit.NEWTONS):
+def convert_force(
+    value, 
+    from_: ForceUnit=ForceUnit.NEWTONS, 
+    to: ForceUnit=ForceUnit.NEWTONS
+) -> float:
     """
     Convert force to the desired unit.
 
-    :param value: Force value to convert.
-    :type value: float
-    :param from_: Input force unit.
-    :type from_: :class:`utilities.unit_conversion.ForceUnit`, optional
-    :param to: Output force unit.
-    :type to: :class:`utilities.unit_conversion.ForceUnit`, optional
-    :return: Converted value
-    :rtype: float
+    Parameters
+    ----------
+    value :float
+        Force value to convert.
+    from_unit : ForceUnit
+        Input force unit.
+    to_unit : ForceUnit
+        Output force unit.
+
+    Returns
+    -------
+    float
+        Converted value.
     """
 
     return _convert_linear(value, from_, to, _FORCE_TO_NEWTONS)
 
 
-def convert_angle(value, from_=AngleUnit.RADIANS, to=AngleUnit.RADIANS):
+def convert_angle(
+    value, 
+    from_: AngleUnit=AngleUnit.RADIANS, 
+    to: AngleUnit=AngleUnit.RADIANS
+) -> float:
     """
     Convert angle to the desired unit.
 
-    :param value: Angle value to convert.
-    :type value: float
-    :param from_: Input angle unit.
-    :type from_: :class:`utilities.unit_conversion.AngleUnit`, optional
-    :param to: Output angle unit.
-    :type to: :class:`utilities.unit_conversion.AngleUnit`, optional
-    :return: Converted value
-    :rtype: float
+    Parameters
+    ----------
+    value :float
+        Angle value to convert.
+    from_unit : AngleUnit
+        Input angle unit.
+    to_unit : AngleUnit
+        Output angle unit.
+
+    Returns
+    -------
+    float
+        Converted value.
     """
 
     converted = value

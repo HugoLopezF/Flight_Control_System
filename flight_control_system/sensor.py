@@ -3,6 +3,38 @@ from .types import SensorModel
 
 
 class Sensor:
+    """
+    Sensor class.
+
+    If no model is passed in, an ideal sensor model is selected.
+
+    Attributes
+    ----------
+    model : SensorModel | str
+        Sensor model.
+    delay : float
+        Sensor delay in seconds.
+    gain : float
+        Sensor static gain.
+    num_order : int
+        Numerator degree (numdeg). If None, uses same order as denominator.
+    den_order : int
+        Denominator order of Pade approximation (n).
+    tau : float
+        Sensor time constant if SensorModel is first order.
+
+    Methods
+    ----------
+    pade()
+        Construct pade sensor instance.
+    first_order()
+        Construct first order sensor instance.
+    ideal()
+        Construct ideal sensor instance.
+    tf()
+        Construct sensor transfer function.
+    """
+
     def __init__(
         self,
         model: SensorModel | str = SensorModel.IDEAL,
@@ -13,23 +45,26 @@ class Sensor:
         tau: float = 0.0,
     ):
         """
-        Sensor model.
+        Sensor class.
+
+        If no model is passed in, an ideal sensor model is selected.
 
         Parameters
         ----------
-        model : float
-            Sensor model.
-        delay : float
-            Sensor delay in seconds.
-        gain : float
-            Sensor static gain.
-        den_order : int
-            Denominator order of Pade approximation (n).
-        num_order : int | None
-            Numerator degree (numdeg). If None, uses same order as denominator.
+        model : SensorModel | str
+            Sensor model (default is SensorModel.IDEAL).
+        delay : float, optional
+            Sensor delay in seconds (default is 0.01).
+        gain : float, optional
+            Sensor static gain (default is 1.0).
+        num_order : int, optional
+            Numerator degree (numdeg). If None, uses same order as denominator (default is 1).
+        den_order : int, optional
+            Denominator order of Pade approximation (n) (default is 1).
         tau : float
             Sensor time constant if SensorModel is first order.
         """
+
         try:
             self.model = SensorModel(model)
         except ValueError as exc:
@@ -64,6 +99,26 @@ class Sensor:
         num_order: int = 1,
         den_order: int = 1,
     ) -> "Sensor":
+        """
+        Construct pade sensor instance.
+
+        Parameters
+        ----------
+        delay : float, optional
+            Sensor delay in seconds (default is 0.01).
+        gain : float, optional
+            Sensor static gain (default is 1.0).
+        num_order : int, optional
+            Numerator degree (numdeg). If None, uses same order as denominator (default is 1).
+        den_order : int, optional
+            Denominator order of Pade approximation (n) (default is 1).
+
+        Returns
+        -------
+        "Sensor"
+            Pade sensor instance.
+        """
+
         return cls(
             model=SensorModel.PADE,
             gain=gain,
@@ -74,13 +129,57 @@ class Sensor:
 
     @classmethod
     def first_order(cls, tau: float = 0.0, gain: float = 1.0) -> "Sensor":
+        """
+        Construct first order sensor instance.
+
+        Parameters
+        ----------
+        tau : float, optional
+            Sensor time constant in seconds (default is 0.0).
+        gain : float, optional
+            Sensor static gain (default is 1.0).
+
+        Returns
+        -------
+        "Sensor"
+            First order sensor instance.
+        """
+
         return cls(model=SensorModel.FIRST_ORDER, gain=gain, tau=tau)
     
     @classmethod
     def ideal(cls, gain: float = 1.0) -> "Sensor":
+        """
+        Construct ideal sensor instance.
+
+        Parameters
+        ----------
+        gain : float, optional
+            Sensor static gain (default is 1.0).
+
+        Returns
+        -------
+        "Sensor"
+            Ideal sensor instance.
+        """
+
         return cls(model=SensorModel.IDEAL, gain=gain)
 
     def tf(self) -> control.TransferFunction:
+        """
+        Construct sensor transfer function.
+
+        Returns
+        -------
+        control.TransferFunction
+            Sensor transfer function.
+
+        Raises
+        ------
+        RuntimeError
+            If incorrect sensor model passed in as a parameter.
+        """
+
         if self.model is SensorModel.PADE:
             if self.delay == 0:
                 return control.tf([self.gain], [1])

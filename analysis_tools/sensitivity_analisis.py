@@ -15,31 +15,108 @@ from matplotlib.colors import hsv_to_rgb
 
 @dataclass(frozen=True)
 class SweepPoint:
+    """
+    Aircraft stability coefficients sweep point.
+
+    Attributes
+    ----------
+    factors : dict[str, float]
+        Factor to multiply stability coefficients by.
+    axis : Axis
+        Axis to analyze.
+    poles : np.ndarray
+        Aircraft poles.
+    """
+        
     factors: dict[str, float]
     axis: Axis
     poles: np.ndarray
 
 
 class SensitivityAnalyzer:
+    """
+    Sensitivity analyzer class.
+
+    Creates pole-zero map for aircraft, SAS and AP when sweeping parameters.
+
+    Attributes
+    ----------
+    SUPPORTED : dict[Axis, tuple(str, str)]
+        Supported stability coefficients to modify.
+    model : tuple
+        Aircraft model to analyze.
+    fig_root : Aircraft, optional
+        Figure root saving path (default is "flight_dynamics").
+
+    Methods
+    ----------
+    _figure_dir()
+        Construct figure saving directory.
+    _recompute_derivatives()
+        Recompute stability derivatives for updated stability coefficients.
+    _add_omega_grid()
+        Adds iso-omega grid to pole-zero map plot.
+    _add_damping_grid()
+        Adds iso-damping grid to pole-zero map plot.
+    build_systems()
+        Construct aircraft for all factor combinations in the sweep.
+    sweep()
+        Obtain sweep points.
+    plot_pzmap()
+        Plot aircraft pole-zero map for each factor combination.
+    plot_sas_pzmap()
+        Plot Stability Augmentation System pole-zero map for each gain combination.
+    """
+        
     SUPPORTED = {
         Axis.LONG: ("Cm_alpha", "Cm_q"),
         Axis.LATDIR: ("Cn_beta", "Cn_r"),
     }
 
     def __init__(self, model: str, fig_root: str | Path = "sens_study"):
+        """
+        Frequency analyzer class.
+
+        Creates Bode and Nichols plots for aircraft, components, SAS and AP.
+
+        Attributes
+        ----------
+        SUPPORTED : dict[Axis, tuple(str, str)]
+            Supported stability coefficients to modify.
+        model : tuple
+            Aircraft model to analyze.
+        fig_root : Aircraft, optional
+            Figure root saving path (default is "sens_study").
+        """
+            
         self.model = model
         self.fig_root = Path(fig_root)
 
     def _figure_dir(self) -> Path:
         """
         Construct figure saving directory.
+
+        Returns
+        ----------
+        Path
+            Figure saving directory.
         """
+
         figdir = self.fig_root / self.model
         figdir.mkdir(parents=True, exist_ok=True)
         return figdir
 
     @staticmethod
     def _recompute_derivatives(ac: Aircraft) -> None:
+        """
+        Recompute stability derivatives for updated stability coefficients.
+
+        Attributes
+        ----------
+        ac : Aircraft
+            Aircraft class to analyze.
+        """
+                
         params = LinearizationParameters(
             geom=ac.geom,
             mass_prop=ac.mass_prop,
@@ -58,6 +135,23 @@ class SensitivityAnalyzer:
         alpha: float = 0.45,
         lw: float = 0.8,
     ) -> None:
+        """
+        Adds iso-omega grid to pole-zero map plot.
+
+        Attributes
+        ----------
+        ax : plt.Axes
+            Figure axes.
+        omegas : tuple[float, ...], optional
+            Omegas to plot iso lines for in rad/s (default is (0.5, 1.0, 2.0, 5.0, 10.0)).
+        color : str, optional
+            Line color (default is "0.35").
+        alpha : float, optional
+            Line transparency (default is 0.45).
+        lw : float, optional
+            Linewidth (default is 0.8).
+        """
+                
         x_min, x_max = ax.get_xlim()
         y_min, y_max = ax.get_ylim()
 
@@ -98,6 +192,24 @@ class SensitivityAnalyzer:
         alpha: float = 0.45,
         lw: float = 0.8,
     ) -> None:
+        """
+        Adds iso-damping grid to pole-zero map plot.
+
+        Attributes
+        ----------
+        ax : plt.Axes
+            Figure axes.
+        zetas : tuple[float, ...], optional
+            Damping to plot iso lines for 
+            (default is (0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9)).
+        color : str, optional
+            Line color (default is "0.35").
+        alpha : float, optional
+            Line transparency (default is 0.45).
+        lw : float, optional
+            Linewidth (default is 0.8).
+        """
+                
         x_min, x_max = ax.get_xlim()
         y_min, y_max = ax.get_ylim()
 
@@ -136,7 +248,27 @@ class SensitivityAnalyzer:
                     clip_on=True,
                 )
 
-    def build_systems(self, group: Axis, coeff_values: Mapping[str, Iterable[float]]) -> list[tuple[float, Axis, LinearizedSystem]]:
+    def build_systems(
+        self, 
+        group: Axis, 
+        coeff_values: Mapping[str, Iterable[float]]
+    ) -> list[tuple[dict[str, float], Axis, LinearizedSystem]]:
+        """
+        Construct aircraft for all factor combinations in the sweep.
+
+        Attributes
+        ----------
+        group : Axis
+            Axis to analyze.
+        coeff_values : Mapping[str, Iterable[float]]
+            Factor values for each coefficient.
+
+        Returns
+        ----------
+        list[tuple[dict[str, float], Axis, LinearizedSystem]]
+            Factors, axis and aircraft for each case.
+        """
+                
         coeff_a, coeff_b = self.SUPPORTED[group]
         vals_a = [float(v) for v in coeff_values.get(coeff_a, [])]
         vals_b = [float(v) for v in coeff_values.get(coeff_b, [])]
@@ -171,7 +303,27 @@ class SensitivityAnalyzer:
 
         return systems
 
-    def sweep(self, group: Axis, coeff_values: Mapping[str, Iterable[float]]) -> list[SweepPoint]:
+    def sweep(
+        self, 
+        group: Axis, 
+        coeff_values: Mapping[str, Iterable[float]]
+    ) -> list[SweepPoint]:
+        """
+        Obtain sweep points.
+
+        Attributes
+        ----------
+        group : Axis
+            Axis to analyze.
+        coeff_values : Mapping[str, Iterable[float]]
+            Factor values for each coefficient.
+
+        Returns
+        ----------
+        list[SweepPoint]
+            Sweep points.
+        """
+
         points: list[SweepPoint] = []
         for factors, axis, lin_sys in self.build_systems(group, coeff_values):
             sys = lin_sys.get_sys(axis)
@@ -183,10 +335,24 @@ class SensitivityAnalyzer:
         self,
         group: Axis,
         coeff_values: Mapping[str, Iterable[float]],
-        show_zeros: bool = False,
         savefig: bool = False,
         showfig: bool = False,
-    ):
+    ) -> None:
+        """
+        Plot aircraft pole-zero map for each factor combination.
+
+        Attributes
+        ----------
+        group : Axis
+            Axis to analyze.
+        coeff_values : Mapping[str, Iterable[float]]
+            Factor values for each coefficient.
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
+        """
+                
         coeff_a, coeff_b = self.SUPPORTED[group]
         vals_a = [float(v) for v in coeff_values.get(coeff_a, [])]
         vals_b = [float(v) for v in coeff_values.get(coeff_b, [])]
@@ -271,7 +437,26 @@ class SensitivityAnalyzer:
         gain_b: OutputChannel,
         savefig: bool = False,
         showfig: bool = False,
-    ):
+    ) -> None:
+        """
+        Plot Stability Augmentation System pole-zero map for each gain combination.
+
+        Attributes
+        ----------
+        points : list
+            Stability Augmentation System sweep point.
+        axis : Axis
+            Axis to analyze.
+        gain_a : OutputChannel
+            First feedback gain channel.
+        gain_b : OutputChannel
+            Second feedback gain channel.
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
+        """
+
         fig, ax = plt.subplots(figsize=(9, 6))
 
         vals_a = np.array([p.feedback_gains[gain_a] for p in points], dtype=float)

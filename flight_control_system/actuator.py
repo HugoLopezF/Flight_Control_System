@@ -2,6 +2,34 @@ import control
 from .types import ActuatorOrder
 
 class Actuator:
+    """
+    Actuator class.
+
+    If no model is passed in, an ideal actuator model is selected.
+
+    Parameters
+    ----------
+    order : ActuatorOrder | str
+        Actuator order.
+    omega_b : float
+        Actuator breakout frequency in rad/s.
+    damp : float
+        Actuator damping.
+    gain : float
+        Actuator static gain.
+
+    Methods
+    ----------
+    ideal()
+        Construct ideal actuator instance.
+    first_order()
+        Construct first order actuator instance.
+    second_order()
+        Construct second order actuator instance.
+    tf()
+        Construct actuator transfer function.
+    """
+        
     def __init__(
         self,
         order: ActuatorOrder | str = ActuatorOrder.IDEAL,
@@ -10,19 +38,20 @@ class Actuator:
         gain: float = 1.0, 
     ):
         """
-        Actuator first and second order model.
+        Actuator class.
 
         Parameters
         ----------
         order : ActuatorOrder | str
-            Actuator order.
+            Actuator order (default is ActuatorOrder.IDEAL).
         omega_b : float
-            Actuator breakout frequency in rad/s.
+            Actuator breakout frequency in rad/s (default is 25.0).
         damp : float
-            Actuator damping.
+            Actuator damping (default is 0.0).
         gain : float
-            Actuator static gain.
+            Actuator static gain (default is 1.0).
         """
+
         try:
             self.order = ActuatorOrder(order)
         except ValueError as exc:
@@ -43,10 +72,40 @@ class Actuator:
 
     @classmethod
     def ideal(cls, gain: float = 1.0) -> "Actuator":
+        """
+        Construct ideal actuator instance.
+
+        Parameters
+        ----------
+        gain : float
+            Actuator static gain (default is 1.0).
+
+        Returns
+        -------
+        "Actuator"
+            Ideal actuator instance.
+        """
+        
         return cls(order=ActuatorOrder.IDEAL, gain=gain)
 
     @classmethod
     def first_order(cls, omega_b: float = 25.0, gain: float = 1.0) -> "Actuator":
+        """
+        Construct first order actuator instance.
+
+        Parameters
+        ----------
+        omega_b : float
+            Actuator breakout frequency in rad/s (default is 25.0).
+        gain : float
+            Actuator static gain (default is 1.0).
+
+        Returns
+        -------
+        "Actuator"
+            First order actuator instance.
+        """
+                
         return cls(order=ActuatorOrder.FIRST, omega_b=omega_b, gain=gain)
 
     @classmethod
@@ -56,9 +115,41 @@ class Actuator:
         damp: float = 0.7,
         gain: float = 1.0,
     ) -> "Actuator":
+        """
+        Construct second order actuator instance.
+
+        Parameters
+        ----------
+        omega_b : float
+            Actuator breakout frequency in rad/s (default is 25.0).
+        damp : float
+            Actuator damping (default is 0.7).
+        gain : float
+            Actuator static gain (default is 1.0).
+
+        Returns
+        -------
+        "Actuator"
+            Second order actuator instance.
+        """
+                
         return cls(order=ActuatorOrder.SECOND, omega_b=omega_b, damp=damp, gain=gain)
 
     def tf(self) -> control.TransferFunction:
+        """
+        Construct actuator transfer function.
+
+        Returns
+        -------
+        control.TransferFunction
+            Actuator transfer function.
+
+        Raises
+        ------
+        RuntimeError
+            If incorrect actuator order passed in as a parameter.
+        """
+                
         if self.order is ActuatorOrder.IDEAL:
             return control.tf([self.gain], [1], 0)
         if self.order is ActuatorOrder.FIRST:

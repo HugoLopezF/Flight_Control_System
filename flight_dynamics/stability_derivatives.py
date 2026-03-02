@@ -4,13 +4,28 @@ from math import sin, cos
 
 
 class StabilityDerivativesCalculator:
+    """
+    Calculator for aircraft's stability derivatives.
+
+    """
         
     @staticmethod
     def calculate_longitudinal(params: LinearizationParameters) -> LongitudinalStabilityDerivatives:
         """
         Calculate all longitudinal stability derivatives.
 
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        LongitudinalStabilityDerivatives
+            Longitudinal axis stability derivatives.
         """
+
         return LongitudinalStabilityDerivatives(
             Xu = StabilityDerivativesCalculator.calculate_Xu(params),
             Xw = StabilityDerivativesCalculator.calculate_Xw(params),
@@ -28,11 +43,22 @@ class StabilityDerivativesCalculator:
         )
     
     @staticmethod
-    def calculate_lateral_directional(params: LinearizationParameters) -> LongitudinalStabilityDerivatives:
+    def calculate_lateral_directional(params: LinearizationParameters) -> LateralDirectionalStabilityDerivatives:
         """
-        Calculate all lateral directional stability derivatives.
+        Calculate all lateral-directional stability derivatives.
 
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        LateralDirectionalStabilityDerivatives
+            Lateral-directional axis stability derivatives.
         """
+
         return LateralDirectionalStabilityDerivatives(
             Yv = StabilityDerivativesCalculator.calculate_Yv(params),
             Yp = StabilityDerivativesCalculator.calculate_Yp(params),
@@ -51,12 +77,22 @@ class StabilityDerivativesCalculator:
         )
     
     # Longitudinal derivatives
-    def calculate_Xu(params) -> float:
+    def calculate_Xu(params: LinearizationParameters) -> float:
         """
         Calculate Xu derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Xu derivative.
         """
+
         W = params.mass_prop.W
         theta_s = params.flight_cond.theta_s
         rho = params.flight_cond.rho
@@ -72,12 +108,22 @@ class StabilityDerivativesCalculator:
         Xu = rho * S * u_s * (CX_s + 0.5 * CX_u)
         return Xu
     
-    def calculate_Xw(params) -> float:
+    def calculate_Xw(params: LinearizationParameters) -> float:
         """
         Calculate Xw derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Xw derivative.
         """
+
         CL_s = params.cond_coeffs.CL_s
         CD_alpha = params.stab_coeffs.long.CD_alpha
         rho = params.flight_cond.rho
@@ -89,12 +135,22 @@ class StabilityDerivativesCalculator:
         Xw = 0.5 * rho * S * u_s * CX_alpha
         return Xw
     
-    def calculate_Xdelta_e(params) -> float:
+    def calculate_Xdelta_e(params: LinearizationParameters) -> float:
         """
         Calculate Xdelta_e derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Xdelta_e derivative.
         """
+
         CD_delta_e = params.stab_coeffs.long.CD_delta_e
         CX_delta_e = - CD_delta_e
         rho = params.flight_cond.rho
@@ -104,12 +160,22 @@ class StabilityDerivativesCalculator:
         Xdelta_e = 0.5 * rho * S * u_s ** 2 * CX_delta_e
         return Xdelta_e
     
-    def calculate_Zu(params) -> float:
+    def calculate_Zu(params: LinearizationParameters) -> float:
         """
         Calculate Zu derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Zu derivative.
         """
+
         W = params.mass_prop.W
         theta_s = params.flight_cond.theta_s
         rho = params.flight_cond.rho
@@ -125,12 +191,22 @@ class StabilityDerivativesCalculator:
         Zu = rho * S * u_s * (CZ_s + 0.5 * CZ_u)
         return Zu
     
-    def calculate_Zw(params) -> float:
+    def calculate_Zw(params: LinearizationParameters) -> float:
         """
         Calculate Zw derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Zw derivative.
         """
+
         CL_alpha = params.stab_coeffs.long.CL_alpha
         CD_s =  params.cond_coeffs.CD_s
         rho = params.flight_cond.rho
@@ -142,12 +218,22 @@ class StabilityDerivativesCalculator:
         Zw = 0.5 * rho * S * u_s * CZ_alpha
         return Zw
     
-    def calculate_Zw_dot(params) -> float:
+    def calculate_Zw_dot(params: LinearizationParameters) -> float:
         """
         Calculate Zw_dot derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Zw_dot derivative.
         """
+
         CL_alpha_dot = params.stab_coeffs.long.CL_alpha_dot
         rho = params.flight_cond.rho
         S = params.geom.S
@@ -158,12 +244,22 @@ class StabilityDerivativesCalculator:
         Zw_dot = 0.25 * rho * S * c * CZ_alpha_dot
         return Zw_dot
     
-    def calculate_Zq(params) -> float:
+    def calculate_Zq(params: LinearizationParameters) -> float:
         """
         Calculate Zq derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Zq derivative.
         """
+
         CL_q = params.stab_coeffs.long.CL_q
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -175,12 +271,22 @@ class StabilityDerivativesCalculator:
         Zq = 0.25 * rho * S * c * u_s * CZ_q
         return Zq
     
-    def calculate_Zdelta_e(params) -> float:
+    def calculate_Zdelta_e(params: LinearizationParameters) -> float:
         """
         Calculate Zdelta_e derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Zdelta_e derivative.
         """
+
         CL_delta_e = params.stab_coeffs.long.CL_delta_e
         CZ_delta_e = - CL_delta_e
         rho = params.flight_cond.rho
@@ -190,12 +296,22 @@ class StabilityDerivativesCalculator:
         Zdelta_e = 0.5 * rho * S * u_s ** 2 * CZ_delta_e
         return Zdelta_e
     
-    def calculate_Mu(params) -> float:
+    def calculate_Mu(params: LinearizationParameters) -> float:
         """
         Calculate Mu derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Mu derivative.
         """
+
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
         S = params.geom.S
@@ -205,12 +321,22 @@ class StabilityDerivativesCalculator:
         Mu = 0.5* rho * S * c * u_s * Cm_u
         return Mu
     
-    def calculate_Mw(params) -> float:
+    def calculate_Mw(params: LinearizationParameters) -> float:
         """
         Calculate Mw derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Mw derivative.
         """
+
         Cm_alpha = params.stab_coeffs.long.Cm_alpha
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -220,12 +346,22 @@ class StabilityDerivativesCalculator:
         Mw = 0.5 * rho * S * c * u_s * Cm_alpha
         return Mw
     
-    def calculate_Mw_dot(params) -> float:
+    def calculate_Mw_dot(params: LinearizationParameters) -> float:
         """
         Calculate Mw_dot derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Mw_dot derivative.
         """
+
         Cm_alpha_dot = params.stab_coeffs.long.Cm_alpha_dot
         rho = params.flight_cond.rho
         S = params.geom.S
@@ -234,12 +370,22 @@ class StabilityDerivativesCalculator:
         Mw_dot = 0.25 * rho * S * c ** 2 * Cm_alpha_dot
         return Mw_dot
     
-    def calculate_Mq(params) -> float:
+    def calculate_Mq(params: LinearizationParameters) -> float:
         """
         Calculate Mq derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Mq derivative.
         """
+
         Cm_q = params.stab_coeffs.long.Cm_q
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -249,12 +395,22 @@ class StabilityDerivativesCalculator:
         Mq = 0.25 * rho * S * c ** 2 * u_s * Cm_q
         return Mq
     
-    def calculate_Mdelta_e(params) -> float:
+    def calculate_Mdelta_e(params: LinearizationParameters) -> float:
         """
         Calculate Mdelta_e derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Mdelta_e derivative.
         """
+
         Cm_delta_e = params.stab_coeffs.long.Cm_delta_e
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -265,12 +421,22 @@ class StabilityDerivativesCalculator:
         return Mdelta_e
     
     # Lateral-directional derivatives
-    def calculate_Yv(params) -> float:
+    def calculate_Yv(params: LinearizationParameters) -> float:
         """
         Calculate Yv derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Yv derivative.
         """
+
         CY_beta = params.stab_coeffs.latdir.CY_beta
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -279,12 +445,22 @@ class StabilityDerivativesCalculator:
         Yv = 0.5 * rho * S * u_s * CY_beta
         return Yv
     
-    def calculate_Yp(params) -> float:
+    def calculate_Yp(params: LinearizationParameters) -> float:
         """
         Calculate Yp derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Yp derivative.
         """
+
         CY_p = params.stab_coeffs.latdir.CY_p
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -294,12 +470,22 @@ class StabilityDerivativesCalculator:
         Yp = 0.25 * rho * S * b * u_s * CY_p
         return Yp
     
-    def calculate_Yr(params) -> float:
+    def calculate_Yr(params: LinearizationParameters) -> float:
         """
         Calculate Yr derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Yr derivative.
         """
+
         CY_r = params.stab_coeffs.latdir.CY_r
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -309,12 +495,22 @@ class StabilityDerivativesCalculator:
         Yr = 0.25 * rho * S * b * u_s * CY_r
         return Yr
     
-    def calculate_Ydelta_r(params) -> float:
+    def calculate_Ydelta_r(params: LinearizationParameters) -> float:
         """
-        Calculate Y_delta_r derivative.
+        Calculate Ydelta_r derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Ydelta_r derivative.
         """
+
         CY_delta_r = params.stab_coeffs.latdir.CY_delta_r
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -323,12 +519,22 @@ class StabilityDerivativesCalculator:
         Ydelta_r = 0.5 * rho * S * u_s ** 2 * CY_delta_r
         return Ydelta_r
     
-    def calculate_Lv(params) -> float:
+    def calculate_Lv(params: LinearizationParameters) -> float:
         """
         Calculate Lv derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Lv derivative.
         """
+
         Cl_beta = params.stab_coeffs.latdir.Cl_beta
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -338,12 +544,22 @@ class StabilityDerivativesCalculator:
         Lv = 0.5 * rho * S * b * u_s * Cl_beta
         return Lv
     
-    def calculate_Lp(params) -> float:
+    def calculate_Lp(params: LinearizationParameters) -> float:
         """
         Calculate Lp derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Lp derivative.
         """
+
         Cl_p = params.stab_coeffs.latdir.Cl_p
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -353,12 +569,22 @@ class StabilityDerivativesCalculator:
         Lp = 0.25 * rho * S * b ** 2 * u_s * Cl_p
         return Lp
     
-    def calculate_Lr(params) -> float:
+    def calculate_Lr(params: LinearizationParameters) -> float:
         """
         Calculate Lr derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Lr derivative.
         """
+
         Cl_r = params.stab_coeffs.latdir.Cl_r
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -368,12 +594,22 @@ class StabilityDerivativesCalculator:
         Lr = 0.25 * rho * S * b ** 2 * u_s * Cl_r
         return Lr
     
-    def calculate_Ldelta_a(params) -> float:
+    def calculate_Ldelta_a(params: LinearizationParameters) -> float:
         """
         Calculate Ldelta_a derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Ldelta_a derivative.
         """
+
         Cl_delta_a = params.stab_coeffs.latdir.Cl_delta_a
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -383,12 +619,22 @@ class StabilityDerivativesCalculator:
         Ldelta_a = 0.5 * rho * S * b * u_s ** 2 * Cl_delta_a
         return Ldelta_a
     
-    def calculate_Ldelta_r(params) -> float:
+    def calculate_Ldelta_r(params: LinearizationParameters) -> float:
         """
         Calculate Ldelta_r derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Ldelta_r derivative.
         """
+
         Cl_delta_r = params.stab_coeffs.latdir.Cl_delta_r
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -398,12 +644,22 @@ class StabilityDerivativesCalculator:
         Ldelta_r = 0.5 * rho * S * b * u_s ** 2 * Cl_delta_r
         return Ldelta_r
     
-    def calculate_Nv(params) -> float:
+    def calculate_Nv(params: LinearizationParameters) -> float:
         """
         Calculate Nv derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Nv derivative.
         """
+
         Cn_beta = params.stab_coeffs.latdir.Cn_beta
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -413,12 +669,22 @@ class StabilityDerivativesCalculator:
         Nv = 0.5 * rho * S * b * u_s * Cn_beta
         return Nv
     
-    def calculate_Np(params) -> float:
+    def calculate_Np(params: LinearizationParameters) -> float:
         """
         Calculate Np derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Np derivative.
         """
+
         Cn_p = params.stab_coeffs.latdir.Cn_p
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -428,12 +694,22 @@ class StabilityDerivativesCalculator:
         Np = 0.25 * rho * S * b ** 2 * u_s * Cn_p
         return Np
     
-    def calculate_Nr(params) -> float:
+    def calculate_Nr(params: LinearizationParameters) -> float:
         """
         Calculate Nr derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Nr derivative.
         """
+
         Cn_r = params.stab_coeffs.latdir.Cn_r
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -443,12 +719,22 @@ class StabilityDerivativesCalculator:
         Nr = 0.25 * rho * S * b ** 2 * u_s * Cn_r
         return Nr
     
-    def calculate_Ndelta_a(params) -> float:
+    def calculate_Ndelta_a(params: LinearizationParameters) -> float:
         """
         Calculate Ndelta_a derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Ndelta_a derivative.
         """
+
         Cn_delta_a = params.stab_coeffs.latdir.Cn_delta_a
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
@@ -458,12 +744,22 @@ class StabilityDerivativesCalculator:
         Ndelta_a = 0.5 * rho * S * b * u_s ** 2 * Cn_delta_a
         return Ndelta_a
     
-    def calculate_Ndelta_r(params) -> float:
+    def calculate_Ndelta_r(params: LinearizationParameters) -> float:
         """
         Calculate Ndelta_r derivative.
 
-        :rtype: float
+        Parameters
+        ----------
+        params : LinearizationParameters
+            Aircraft geometry, mass, flight condition, stability coefficients and 
+            stability derivatives data.
+
+        Returns
+        -------
+        float
+            Ndelta_r derivative.
         """
+
         Cn_delta_r = params.stab_coeffs.latdir.Cn_delta_r
         rho = params.flight_cond.rho
         u_s = params.flight_cond.u_s
