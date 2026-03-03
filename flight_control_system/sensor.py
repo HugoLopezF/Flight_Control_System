@@ -182,7 +182,7 @@ class Sensor:
 
         if self.model is SensorModel.PADE:
             if self.delay == 0:
-                return control.tf([self.gain], [1])
+                return control.tf([self.gain], [1], 0)
             num, den = control.pade(self.delay, self.den_order, self.num_order)
             return self.gain * control.tf(num, den, 0)
 

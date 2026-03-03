@@ -7,7 +7,7 @@ class Actuator:
 
     If no model is passed in, an ideal actuator model is selected.
 
-    Parameters
+    Attributes
     ----------
     order : ActuatorOrder | str
         Actuator order.

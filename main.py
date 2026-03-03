@@ -41,6 +41,7 @@ def main():
     # }
     # FrequencyAnalyzer.compare_components(tf_map=act_map, showfig=True)
 
+    # # Compare sensors
     # sens_map = {
     #     r'Pade 1st order $\tau = 1s$': Sensor.pade(delay=1, num_order=1, den_order=1).tf(),
     #     r'Pade 2nd order $\tau = 1s$': Sensor.pade(delay=1, num_order=2, den_order=2).tf()
@@ -71,7 +72,7 @@ def main():
     c = myaircraft.geom.c
     u_s = myaircraft.flight_cond.u_s
 
-    gain_values = {
+    long_gain_values = {
         OutputChannel.ALPHA: [-(F_alpha - 1.0) * Cm_alpha / Cm_delta_e for F_alpha in long_factors['Cm_alpha']],
         OutputChannel.Q: [-(F_q - 1.0) * Cm_q / Cm_delta_e * c / (2.0 * u_s) for F_q in long_factors['Cm_q']],
     }
@@ -87,7 +88,7 @@ def main():
     long_points = sweep_feedback_gains(
         lin_sys=mylin_sys,
         axis=Axis.LONG,
-        gain_values=gain_values,
+        gain_values=long_gain_values,
         actuators=actuators,
         sensors=sensors,
     )
@@ -102,7 +103,7 @@ def main():
     b = myaircraft.geom.b
     u_s = myaircraft.flight_cond.u_s
 
-    gain_values = {
+    latdir_gain_values = {
         OutputChannel.BETA: [-(F_beta - 1.0) * Cn_beta / Cn_delta_r for F_beta in latdir_factors['Cn_beta']],
         OutputChannel.R: [-(F_r - 1.0) * Cn_r / Cn_delta_r * b / (2.0 * u_s) for F_r in latdir_factors['Cn_r']],
     }
@@ -119,7 +120,7 @@ def main():
     latdir_points = sweep_feedback_gains(
         lin_sys=mylin_sys,
         axis=Axis.LATDIR,
-        gain_values=gain_values,
+        gain_values=latdir_gain_values,
         actuators=actuators,
         sensors=sensors,
     )
@@ -139,10 +140,10 @@ def main():
     #     showfig=True,
     # )
 
-    # Initialize SAS
+    # SAS Response
     mySAS = SAS(mylin_sys)
 
-    # LONG
+    ## Longitudinal SAS
     feedback_gains = {
         OutputChannel.ALPHA: -8.0,
         OutputChannel.Q: -3.0,
@@ -161,7 +162,7 @@ def main():
         sensors=sensors,
     )
 
-    # LATDIR
+    ## Lateral-directional SAS
     feedback_gains = {
         OutputChannel.BETA: 0.0, # 0.6,
         OutputChannel.R: 0.0, # 1.5,

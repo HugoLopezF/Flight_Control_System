@@ -1,12 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Aircraft
-=========
-
-Aircraft parameters and calculations.
-
-"""
-
 from pathlib import Path
 import json
 from utilities.constants import g 

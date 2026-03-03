@@ -12,7 +12,36 @@ from .state_space import LinearizedSystem
 
 
 class SAS:
-    # Which outputs are fed back to which input channel
+    """
+    Stability Augmentation System class.
+
+    Attributes
+    ----------
+    SUPPORTED_FEEDBACK : dict[Axis, dict[InputChannel, tuple(Outputchannel, ...)]]
+        Supported feedback output channels for each input channel.
+    SUPPORTED_DL_GAIN : dict[Axis, InputChannel]
+        Supported input channel where direct-link gain is applied.
+    sys : LinearizedSystem
+        Aircraft linearized system.
+
+    Methods
+    ----------
+    _out_idx()
+        Obtain output channel index.
+    _inp_idx()
+        Obtain input channel index.
+    _actuator_block()
+        Obtain actuators block to use in Stability Augmentation System.
+    _sensor_block()
+        Obtain sensors block to use in Stability Augmentation System.
+    _filter_block()
+        Obtain filters block to use in Stability Augmentation System.
+    _feedback_gain_matrix()
+        Obtain feedback gains matrix to use in Stability Augmentation System.
+    build_sas()
+        Construct Stability Augmentation System.
+    """
+
     SUPPORTED_FEEDBACK = {
         Axis.LONG: {
             InputChannel.ELEVATOR: (OutputChannel.ALPHA, OutputChannel.Q),
@@ -22,24 +51,84 @@ class SAS:
         },
     }
 
-    # Channel where direct-link gain is applied
     SUPPORTED_DL_GAIN = {
         Axis.LONG: InputChannel.ELEVATOR,
         Axis.LATDIR: InputChannel.AILERON,
     }
 
     def __init__(self, lin_sys: LinearizedSystem):
+        """
+        Stability Augmentation System class.
+
+        Parameters
+        ----------
+        sys : LinearizedSystem
+            Aircraft linearized system.
+        """
+
         self.sys = lin_sys
 
     @staticmethod
     def _out_idx(axis: Axis, channel: OutputChannel) -> int:
+        """
+        Obtain output channel index.
+
+        Parameters
+        ----------
+        axis: Axis
+            Axis to study.
+        channel: OutputChannel
+            Output channel to obtain index for.
+
+        Returns
+        ----------
+        int
+            Output channel index
+        """
+
         return AXIS_LABELS[axis].state_channels.index(channel)
 
     @staticmethod
     def _inp_idx(axis: Axis, channel: InputChannel) -> int:
+        """
+        Obtain input channel index.
+
+        Parameters
+        ----------
+        axis: Axis
+            Axis to study.
+        channel: InputChannel
+            Input channel to obtain index for.
+
+        Returns
+        ----------
+        int
+            Input channel index
+        """
+
         return AXIS_LABELS[axis].input_channels.index(channel)
 
-    def _actuator_block(self, axis: Axis, actuators: Mapping[InputChannel, Actuator]):
+    def _actuator_block(
+        self,
+        axis: Axis,
+        actuators: Mapping[InputChannel, Actuator],
+    ) -> control.StateSpace:
+        """
+        Obtain actuators block to use in Stability Augmentation System.
+
+        Parameters
+        ----------
+        axis: Axis
+            Axis to study.
+        actuators: Mapping[InputChannel, Actuator]
+            Actuators for each input channel.
+
+        Returns
+        ----------
+        control.StateSpace
+            Actuators block.
+        """
+
         blocks = []
         for ch in AXIS_LABELS[axis].input_channels:
             act = actuators.get(ch)
@@ -48,7 +137,27 @@ class SAS:
             blocks.append(control.ss(act.tf()))
         return control.append(*blocks)
     
-    def _sensor_block(self, axis: Axis, sensors: Mapping[OutputChannel, Sensor]):
+    def _sensor_block(
+        self,
+        axis: Axis,
+        sensors: Mapping[OutputChannel, Sensor]
+    ) -> control.StateSpace:
+        """
+        Obtain sensors block to use in Stability Augmentation System.
+
+        Parameters
+        ----------
+        axis: Axis
+            Axis to study.
+        sensors: Mapping[OutputChannel, Sensor]
+            Sensors for each input channel.
+
+        Returns
+        ----------
+        control.StateSpace
+            Sensors block.
+        """
+
         blocks = []
         for ch in AXIS_LABELS[axis].state_channels:
             sens = sensors.get(ch)
@@ -57,7 +166,27 @@ class SAS:
             blocks.append(control.ss(sens.tf()))
         return control.append(*blocks)
     
-    def _filter_block(self, axis: Axis, filters: Mapping[OutputChannel, Filter]):
+    def _filter_block(
+        self,
+        axis: Axis,
+        filters: Mapping[OutputChannel, Filter]
+    ) -> control.StateSpace:
+        """
+        Obtain filters block to use in Stability Augmentation System.
+
+        Parameters
+        ----------
+        axis: Axis
+            Axis to study.
+        filters: Mapping[OutputChannel, Filter]
+            Filters for each output channel.
+
+        Returns
+        ----------
+        control.StateSpace
+            Filters block.
+        """
+
         blocks = []
         for ch in AXIS_LABELS[axis].state_channels:
             flt = filters.get(ch)
@@ -71,6 +200,22 @@ class SAS:
         axis: Axis,
         feedback_gains: Mapping[OutputChannel, float],
     ) -> np.ndarray:
+        """
+        Obtain feedback gains matrix to use in Stability Augmentation System.
+
+        Parameters
+        ----------
+        axis: Axis
+            Axis to study.
+        feedback_gains : Mapping[OutputChannel, float]
+            Feedback gains for each output channel.
+
+        Returns
+        ----------
+        np.ndarray
+            Feedback gains matrix.
+        """
+
         ny = len(AXIS_LABELS[axis].state_channels)
         nu = len(AXIS_LABELS[axis].input_channels)
         K = np.zeros((nu, ny), dtype=float)
@@ -90,7 +235,33 @@ class SAS:
         sensors: Mapping[OutputChannel, Sensor] | None = None,
         filters: Mapping[OutputChannel, Filter] | None = None,
         desired_out: float = 1.0,
-    ):
+    ) -> tuple[control.StateSpace, float, np.ndarray]:
+        """
+        Construct Stability Augmentation System.
+
+        Parameters
+        ----------
+        axis: Axis
+            Axis to study.
+        feedback_gains : Mapping[OutputChannel, float]
+            Feedback gains for each output channel.
+        actuators: Mapping[InputChannel, Actuator]
+            Actuators for each input channel.
+        sensors: Mapping[OutputChannel, Sensor]
+            Sensors for each input channel.
+        filters: Mapping[OutputChannel, Filter]
+            Filters for each output channel.
+        desired_out : float, optional
+            Desired steady-state value of the output variable for a
+            step input of 1deg (default is 1.0).
+
+        Returns
+        ----------
+        tuple[control.StateSpace, float, np.ndarray]
+            Stability Augmentation System, Direct-link gain and
+            feedback gain matrix.
+        """
+
         feedback_gains = {} if feedback_gains is None else feedback_gains
         actuators = {} if actuators is None else actuators
         sensors = {} if sensors is None else sensors

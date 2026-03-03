@@ -43,10 +43,10 @@ class SensitivityAnalyzer:
     ----------
     SUPPORTED : dict[Axis, tuple(str, str)]
         Supported stability coefficients to modify.
-    model : tuple
+    model : str
         Aircraft model to analyze.
-    fig_root : Aircraft, optional
-        Figure root saving path (default is "flight_dynamics").
+    fig_root : str | Path, optional
+        Figure root saving path (default is "sens_study").
 
     Methods
     ----------
@@ -75,17 +75,17 @@ class SensitivityAnalyzer:
 
     def __init__(self, model: str, fig_root: str | Path = "sens_study"):
         """
-        Frequency analyzer class.
+        Sensitivity analyzer class.
 
-        Creates Bode and Nichols plots for aircraft, components, SAS and AP.
+        Creates pole-zero map for aircraft, SAS and AP when sweeping parameters.
 
-        Attributes
+        Parameters
         ----------
         SUPPORTED : dict[Axis, tuple(str, str)]
             Supported stability coefficients to modify.
-        model : tuple
+        model : str
             Aircraft model to analyze.
-        fig_root : Aircraft, optional
+        fig_root : str | Path, optional
             Figure root saving path (default is "sens_study").
         """
             
@@ -111,7 +111,7 @@ class SensitivityAnalyzer:
         """
         Recompute stability derivatives for updated stability coefficients.
 
-        Attributes
+        Parameters
         ----------
         ac : Aircraft
             Aircraft class to analyze.
@@ -138,7 +138,7 @@ class SensitivityAnalyzer:
         """
         Adds iso-omega grid to pole-zero map plot.
 
-        Attributes
+        Parameters
         ----------
         ax : plt.Axes
             Figure axes.
@@ -195,7 +195,7 @@ class SensitivityAnalyzer:
         """
         Adds iso-damping grid to pole-zero map plot.
 
-        Attributes
+        Parameters
         ----------
         ax : plt.Axes
             Figure axes.
@@ -256,7 +256,7 @@ class SensitivityAnalyzer:
         """
         Construct aircraft for all factor combinations in the sweep.
 
-        Attributes
+        Parameters
         ----------
         group : Axis
             Axis to analyze.
@@ -311,7 +311,7 @@ class SensitivityAnalyzer:
         """
         Obtain sweep points.
 
-        Attributes
+        Parameters
         ----------
         group : Axis
             Axis to analyze.
@@ -341,7 +341,7 @@ class SensitivityAnalyzer:
         """
         Plot aircraft pole-zero map for each factor combination.
 
-        Attributes
+        Parameters
         ----------
         group : Axis
             Axis to analyze.
@@ -441,7 +441,7 @@ class SensitivityAnalyzer:
         """
         Plot Stability Augmentation System pole-zero map for each gain combination.
 
-        Attributes
+        Parameters
         ----------
         points : list
             Stability Augmentation System sweep point.
@@ -482,7 +482,7 @@ class SensitivityAnalyzer:
                 legend_rgb,
                 origin="lower",
                 aspect="auto",
-                extent=[vals_a.min(), vals_a.max(), vals_a.min(), vals_a.max()],
+                extent=[vals_a.min(), vals_a.max(), vals_b.min(), vals_b.max()],
             )
             iax.set_xlabel(f"{gain_a.value} gain", fontsize=8)
             iax.set_ylabel(f"{gain_b.value} gain", fontsize=8)

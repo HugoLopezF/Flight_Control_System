@@ -29,9 +29,9 @@ class TimeResponseAnalyzer:
     Methods
     ----------
     _labels()
-        Construct figure saving directory.
+        Obtain axis labels.
     _figure_dir()
-        Recompute stability derivatives for updated stability coefficients.
+        Construct figure saving directory.
     get_component_response()
         Obtain component's response for selected input.
     compare_components()
@@ -58,7 +58,7 @@ class TimeResponseAnalyzer:
 
         Creates time response plots for aircraft, components, SAS and AP.
 
-        Attributes
+        Parameters
         ----------
         AXES : dict[Axis, tuple(str, str)]
             Dynamic system axes.
@@ -78,7 +78,7 @@ class TimeResponseAnalyzer:
         """
         Obtain axis labels.
 
-        Attributes
+        Parameters
         ----------
         axis : Axis
             Axis to get labels for.
@@ -112,11 +112,11 @@ class TimeResponseAnalyzer:
         input_type: InputSignal,
         amp: float = 1.0, 
         t_end: float = 10.0,
-    ) -> tuple[control.StateSpace | control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
+    ) -> tuple[control.TransferFunction | control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
         """
         Obtain component's response for selected input.
 
-        Attributes
+        Parameters
         ----------
         tf : control.TransferFunction | control.StateSpace
             Transfer function to obtain response from.
@@ -131,7 +131,7 @@ class TimeResponseAnalyzer:
 
         Returns
         ----------
-        tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]
+        tuple[control.TransferFunction | control.StateSpace, np.ndarray, np.ndarray, np.ndarray]
             Component transfer function and response.   
         """
 
@@ -163,7 +163,7 @@ class TimeResponseAnalyzer:
         """
         Plots component's response for selected input.
 
-        Attributes
+        Parameters
         ----------
         tf_map : Mapping[str, control.TransferFunction]
             Transfer functions of components.
@@ -224,7 +224,7 @@ class TimeResponseAnalyzer:
         """
         Wrapper to obtain response from a system whether it is an aircraft, SAS or AP.
 
-        Attributes
+        Parameters
         ----------
         sys : control.StateSpace
             System to analyze.
@@ -285,7 +285,7 @@ class TimeResponseAnalyzer:
         """
         Obtain aircraft's response.
 
-        Attributes
+        Parameters
         ----------
         t : np.ndarray
             Time vector in seconds.
@@ -323,7 +323,7 @@ class TimeResponseAnalyzer:
         """
         Obtain Stability Augmentation System response.
 
-        Attributes
+        Parameters
         ----------
         sas_sys : control.StateSpace
             Stability Augmentation System system.
@@ -362,7 +362,7 @@ class TimeResponseAnalyzer:
         """
         Plot aircraft's response for selected input type and axis.
 
-        Attributes
+        Parameters
         ----------
         t : np.ndarray
             Time vector in seconds.
@@ -433,7 +433,7 @@ class TimeResponseAnalyzer:
         """
         Plot Stability Augmentation System response for selected input type and axis.
 
-        Attributes
+        Parameters
         ----------
         sas_sys : control.StateSpace
             Stability Augmentation System system.

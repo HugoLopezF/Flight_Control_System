@@ -74,7 +74,7 @@ class LinearizedSystem:
         """
         Aircraft's linearized dynamic system.
 
-        Attributes
+        Parameters
         ----------
         AXES : tuple
             Dynamic system axes.
@@ -101,7 +101,7 @@ class LinearizedSystem:
         """
         Calculate dynamic space state system.
 
-        Attributes
+        Parameters
         ----------
         axis : Axis
             Axis to obtain matrices for.
@@ -137,7 +137,7 @@ class LinearizedSystem:
         """
         Calculate standard form space state matrices for the selected axis.
 
-        Attributes
+        Parameters
         ----------
         axis : Axis
             Axis to obtain matrices for.
@@ -161,7 +161,7 @@ class LinearizedSystem:
         """
         Calculate linearized system matrices for the selected axis.
 
-        Attributes
+        Parameters
         ----------
         axis : Axis
             Axis to obtain matrices for.
@@ -187,11 +187,6 @@ class LinearizedSystem:
     def get_long_matrices(self) -> tuple[np.array, np.array, np.array]:
         """
         Calculate longitudinal space state matrices.
-
-        Attributes
-        ----------
-        axis : Axis
-            Axis to obtain matrices for.
 
         Returns
         ----------
@@ -244,11 +239,6 @@ class LinearizedSystem:
     def get_latdir_matrices(self) -> tuple[np.array, np.array, np.array]:
         """
         Calculate lateral-directional space state matrices.
-
-        Attributes
-        ----------
-        axis : Axis
-            Axis to obtain matrices for.
 
         Returns
         ----------

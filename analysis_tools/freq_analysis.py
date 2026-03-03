@@ -57,7 +57,7 @@ class FrequencyAnalyzer:
 
         Creates Bode and Nichols plots for aircraft, components, SAS and AP.
 
-        Attributes
+        Parameters
         ----------
         AXES : tuple
             Dynamic system axes.
@@ -81,7 +81,7 @@ class FrequencyAnalyzer:
         """
         Obtain axis labels.
 
-        Attributes
+        Parameters
         ----------
         axis : Axis
             Axis to get labels for.
@@ -99,7 +99,7 @@ class FrequencyAnalyzer:
         """
         Clean labels for figure naming.
 
-        Attributes
+        Parameters
         ----------
         label : str
             Label to clean.
@@ -130,7 +130,7 @@ class FrequencyAnalyzer:
         """
         Calculate frequency-domain metrics for channel y_i / u_j.
 
-        Attributes
+        Parameters
         ----------
         axis : Axis
             Axis to analyze.
@@ -180,7 +180,7 @@ class FrequencyAnalyzer:
         """
         Plot system's Bode and Nichols plots for all axes.
 
-        Attributes
+        Parameters
         ----------
         savefig : bool, optional
             Option to save figure (default is False).
@@ -195,7 +195,7 @@ class FrequencyAnalyzer:
         """
         Plot system's Bode and Nichols plots for the selected axis.
 
-        Attributes
+        Parameters
         ----------
         axis : Axis
             Axis to analyze.
@@ -274,7 +274,7 @@ class FrequencyAnalyzer:
         """
         Plot system's Bode plots for for the selected axis.
 
-        Attributes
+        Parameters
         ----------
         axis : Axis
             Axis to analyze.
@@ -311,7 +311,7 @@ class FrequencyAnalyzer:
         """
         Plot system's Nichols plots for for the selected axis.
 
-        Attributes
+        Parameters
         ----------
         axis : Axis
             Axis to analyze.
@@ -356,7 +356,7 @@ class FrequencyAnalyzer:
         """
         Compare components frequency response in a Bode plot.
 
-        Attributes
+        Parameters
         ----------
         tf_map : Mapping[str, control.TransferFunction]
             Transfer functions of components.
@@ -417,7 +417,7 @@ class FrequencyAnalyzer:
         """
         Compare Stability Augmentation System Nichols plot when varying feedback gains.
 
-        Attributes
+        Parameters
         ----------
         sys_map : Mapping[str, control.StateSpace]
             Stability augmentation systems to compare.
