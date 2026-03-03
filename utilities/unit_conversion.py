@@ -158,9 +158,9 @@ def convert_weight(
     ----------
     value :float
         Weight value to convert.
-    from_unit : WeightUnit
+    from_ : WeightUnit
         Input weight unit.
-    to_unit : WeightUnit
+    to : WeightUnit
         Output weight unit.
 
     Returns
@@ -184,9 +184,9 @@ def convert_length(
     ----------
     value :float
         Length value to convert.
-    from_unit : LengthUnit
+    from_ : LengthUnit
         Input length unit.
-    to_unit : LengthUnit
+    to : LengthUnit
         Output length unit.
 
     Returns
@@ -210,9 +210,9 @@ def convert_temperature(
     ----------
     value :float
         Temperature value to convert.
-    from_unit : TemperatureUnit
+    from_ : TemperatureUnit
         Input temperature unit.
-    to_unit : TemperatureUnit
+    to : TemperatureUnit
         Output temperature unit.
 
     Returns
@@ -248,9 +248,9 @@ def convert_speed(
     ----------
     value :float
         Speed value to convert.
-    from_unit : SpeedUnit
+    from_ : SpeedUnit
         Input speed unit.
-    to_unit : SpeedUnit
+    to : SpeedUnit
         Output speed unit.
 
     Returns
@@ -274,9 +274,9 @@ def convert_force(
     ----------
     value :float
         Force value to convert.
-    from_unit : ForceUnit
+    from_ : ForceUnit
         Input force unit.
-    to_unit : ForceUnit
+    to : ForceUnit
         Output force unit.
 
     Returns
@@ -300,9 +300,9 @@ def convert_angle(
     ----------
     value :float
         Angle value to convert.
-    from_unit : AngleUnit
+    from_ : AngleUnit
         Input angle unit.
-    to_unit : AngleUnit
+    to : AngleUnit
         Output angle unit.
 
     Returns

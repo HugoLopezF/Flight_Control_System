@@ -87,6 +87,8 @@ class FlightCondition:
         Air density.
     u_s : float
         Aerodynamic speed.
+    theta_s : float
+        Initial state pitch angle.
     h : float
         Altitude.
     M : float
@@ -268,6 +270,8 @@ class LongitudinalStabilityDerivatives:
         Derivative of vertical force with respect to z-axis aerodynamic acceleration.
     Zq : float
         Derivative of vertical force with respect to pitch rate.
+    Zdelta_e : float
+        Derivative of vertical force with respect to elevator deflection.
     Mu : float
         Derivative of pitch moment with respect to x-axis aerodynamic speed.
     Mw : float
@@ -381,9 +385,9 @@ class StabilityDerivatives:
 
     Attributes
     ----------
-    long : Geometry
+    long : LongitudinalStabilityDerivatives
         Aircraft longitudinal stability derivatives.
-    latdir : MassProperties
+    latdir : LateralDirectionalStabilityDerivatives
         Aircraft lateral-directional stability derivatives.
     """
 

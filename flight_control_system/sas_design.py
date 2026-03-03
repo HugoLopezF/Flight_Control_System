@@ -1,4 +1,4 @@
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterator, Iterable, Mapping
 from dataclasses import dataclass
 from itertools import product
 import control
@@ -150,7 +150,7 @@ def iter_feedback_gain_sets(
     axis: Axis,
     gain_values: Mapping[OutputChannel, Iterable[float]],
     base_feedback_gains: Mapping[OutputChannel, float] | None = None,
-) -> dict[dict[Mapping[OutputChannel, float]]]:
+) -> Iterator[dict[OutputChannel, float]]:
     """
     Obtain feedback gain combinations.
 
@@ -167,7 +167,7 @@ def iter_feedback_gain_sets(
 
     Returns
     -------
-    dict[dict[Mapping[OutputChannel, float]]]
+    Iterator[dict[OutputChannel, float]]
         Feedback gain combinations.
     """
 

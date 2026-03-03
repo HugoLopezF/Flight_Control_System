@@ -18,6 +18,8 @@ class FrequencyAnalyzer:
     ----------
     AXES : tuple
         Dynamic system axes.
+    sys : LinearizedSystem
+        Aircraft linearized system.
     fig_root : str | Path
         Figure root saving path (default is "flight_dynamics").
     labels : dict[Axis, AxisLabels]
@@ -40,9 +42,9 @@ class FrequencyAnalyzer:
     plot_freq_analysis()
         Plot system's Bode and Nichols plots for the selected axis.
     plot_bode()
-        Plot system's Bode plots for for the selected axis.
+        Plot system's Bode plots for the selected axis.
     plot_nichols()
-        Plot system's Nichols plots for for the selected axis.
+        Plot system's Nichols plots for the selected axis.
     compare_components()
         Compare components frequency response in a Bode plot.
     compare_sas_nichols()
@@ -59,14 +61,10 @@ class FrequencyAnalyzer:
 
         Parameters
         ----------
-        AXES : tuple
+        lin_sys : LinearizedSystem
             Dynamic system axes.
-        fig_root : Aircraft, optional
+        fig_root : str | Path
             Figure root saving path (default is "flight_dynamics").
-        labels : dict[Axis, AxisLabels]
-            Axis input and output (state) channels labels.
-        bode_lims : dict[Axis, list]
-            Bode plot x-axis limits in rad/s.
         """
             
         self.sys = lin_sys
@@ -272,7 +270,7 @@ class FrequencyAnalyzer:
 
     def plot_bode(self, axis: Axis, savefig: bool = False, showfig: bool = False) -> None:
         """
-        Plot system's Bode plots for for the selected axis.
+        Plot system's Bode plots for the selected axis.
 
         Parameters
         ----------
@@ -309,7 +307,7 @@ class FrequencyAnalyzer:
     
     def plot_nichols(self, axis: Axis, savefig: bool = False, showfig: bool = False) -> None:
         """
-        Plot system's Nichols plots for for the selected axis.
+        Plot system's Nichols plots for the selected axis.
 
         Parameters
         ----------

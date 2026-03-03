@@ -17,7 +17,7 @@ class SAS:
 
     Attributes
     ----------
-    SUPPORTED_FEEDBACK : dict[Axis, dict[InputChannel, tuple(Outputchannel, ...)]]
+    SUPPORTED_FEEDBACK : dict[Axis, dict[InputChannel, tuple(OutputChannel, ...)]]
         Supported feedback output channels for each input channel.
     SUPPORTED_DL_GAIN : dict[Axis, InputChannel]
         Supported input channel where direct-link gain is applied.
@@ -62,7 +62,7 @@ class SAS:
 
         Parameters
         ----------
-        sys : LinearizedSystem
+        lin_sys : LinearizedSystem
             Aircraft linearized system.
         """
 
@@ -150,7 +150,7 @@ class SAS:
         axis: Axis
             Axis to study.
         sensors: Mapping[OutputChannel, Sensor]
-            Sensors for each input channel.
+            Sensors for each output channel.
 
         Returns
         ----------
@@ -248,7 +248,7 @@ class SAS:
         actuators: Mapping[InputChannel, Actuator]
             Actuators for each input channel.
         sensors: Mapping[OutputChannel, Sensor]
-            Sensors for each input channel.
+            Sensors for each output channel.
         filters: Mapping[OutputChannel, Filter]
             Filters for each output channel.
         desired_out : float, optional

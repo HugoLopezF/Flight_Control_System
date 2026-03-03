@@ -81,8 +81,6 @@ class SensitivityAnalyzer:
 
         Parameters
         ----------
-        SUPPORTED : dict[Axis, tuple(str, str)]
-            Supported stability coefficients to modify.
         model : str
             Aircraft model to analyze.
         fig_root : str | Path, optional

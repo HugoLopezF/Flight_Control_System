@@ -27,7 +27,7 @@ def step(t: np.ndarray, amp: float = 1.0) -> np.ndarray:
 
     Parameters
     ----------
-    t : np.linspace
+    t : np.ndarray
         Time vector in seconds.
     amp : float, optional
         Step amplitude (default is 1.0).
@@ -50,7 +50,7 @@ def pulse(t: np.ndarray, amp: float = 1.0, t_end: float = 10.0) -> np.ndarray:
 
     Parameters
     ----------
-    t : np.linspace
+    t : np.ndarray
         Time vector in seconds.
     amp : float, optional
         Pulse amplitude (default is 1.0).
@@ -78,7 +78,7 @@ def sat_ramp(t: np.ndarray, amp: float = 1.0, t_end: float = 10.0) -> np.ndarray
 
     Parameters
     ----------
-    t : np.linspace
+    t : np.ndarray
         Time vector in seconds.
     amp : float, optional
         Saturated ramp amplitude (default is 1.0).
@@ -105,7 +105,7 @@ def build_input(signal: InputSignal, t: np.ndarray, amp: float = 1.0, t_end: flo
     ----------
     signal : InputSignal
         Signal type.
-    t : np.linspace
+    t : np.ndarray
         Time vector in seconds.
     amp : float, optional
         Input signal amplitude (default is 1.0).

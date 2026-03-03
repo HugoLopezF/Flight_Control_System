@@ -17,10 +17,10 @@ class TimeResponseAnalyzer:
 
     Attributes
     ----------
-    AXES : dict[Axis, tuple(str, str)]
+    AXES : tuple ((Axis.LONG, Axis.LATDIR))
         Dynamic system axes.
     sys : LinearizedSystem
-        Linearized system to analyze.
+        Aircraft linearized system to analyze.
     fig_root : str | Path
         Figure root saving path (default is "flight_dynamics").
     labels : dict[Axis, AxisLabels]
@@ -60,14 +60,10 @@ class TimeResponseAnalyzer:
 
         Parameters
         ----------
-        AXES : dict[Axis, tuple(str, str)]
-            Dynamic system axes.
-        sys : LinearizedSystem
+        lin_sys : LinearizedSystem
             Linearized system to analyze.
         fig_root : str | Path
             Figure root saving path (default is "flight_dynamics").
-        labels : dict[Axis, AxisLabels]
-            Axis input and output (state) channels labels.
         """
 
         self.sys = lin_sys

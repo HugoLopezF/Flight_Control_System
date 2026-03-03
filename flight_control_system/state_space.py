@@ -52,8 +52,8 @@ class LinearizedSystem:
 
     Methods
     ----------
-    get_TF()
-        
+    get_tf()
+        TODO
     get_sys()
         Calculate dynamic space state system.
     compute_all_axes()
@@ -76,16 +76,8 @@ class LinearizedSystem:
 
         Parameters
         ----------
-        AXES : tuple
-            Dynamic system axes.
         aircraft : Aircraft
             Aircraft to analyze.
-        _raw : dict[Axis, LinearizedMatrices]
-            Raw form matrices of the linearized dynamic system as in E * x_dot(t) = A' * x(t) + B' * u(t).
-        _std : dict[Axis, StandardMatrices]
-            Standard form matrices of the linearized dynamic system as in x_dot(t) = A * x(t) + B * u(t).
-        _tf : dict[Axis, sp.Matrix]
-            Transfer functions of the linearized dynamic system.
         """
 
         self.aircraft = aircraft
