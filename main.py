@@ -9,7 +9,10 @@ from analysis_tools.sensitivity_analisis import SensitivityAnalyzer
 from flight_control_system.types import Axis, OutputChannel, InputChannel
 from flight_control_system.actuator import Actuator
 from flight_control_system.sensor import Sensor
+from flight_control_system.filter import Filter, FilterType
 from flight_control_system.sas_design import sweep_feedback_gains
+from flight_control_system.autopilot import AutopilotMode, PIDGains
+from flight_control_system.autopilot_design import sweep_pid_gains
 
 def main():
     AXES = (Axis.LONG, Axis.LATDIR)
@@ -30,7 +33,7 @@ def main():
     # # Response analysis
     # myresponse_analyzer = TimeResponseAnalyzer(mylin_sys)
     # t = np.linspace(0, 1000, 10000)
-    # myresponse_analyzer.plot_full_response(t=t, input_type=InputSignal.STEP, amp=1/4.785714285714261, showfig=True)
+    # myresponse_analyzer.plot_full_response(t=t, input_type=InputSignal.STEP, amp=1, showfig=True)
 
     # # Compare actuators
     # act_map = {
@@ -51,18 +54,22 @@ def main():
     # TimeResponseAnalyzer.compare_components(tf_map=sens_map, t=t, input_type=InputSignal.SAT_RAMP, amp=1, t_end=1, showfig=True)
 
     # # Stability coefficients sweep
-    # sa = SensitivityAnalyzer("Learjet_24")
+    sa = SensitivityAnalyzer("Learjet_24")
     long_factors = {
-        "Cm_alpha": np.linspace(0.5, 20.0, 5),
-        "Cm_q": np.linspace(0.5, 20.0, 5),
+        "Cm_alpha": [-0.5, -0.2, 0, 0.5, 1, 2, 3, 4], 
+        "Cm_q": [-0.5, -0.2, 0, 0.5, 1, 2, 3, 4],
     }
-    # sa.plot_pzmap(Axis.LONG, long_factors, showfig=True)    # Cm_alpha + Cm_q in one grid
+    sa.plot_pzmap(Axis.LONG, long_factors, showfig=True)    # Cm_alpha + Cm_q in one grid
 
+    # latdir_factors = {
+    #     "Cn_beta": [0, 0.5, 1, 2, 3],
+    #     "Cn_r": [0, 0.5, 1, 2, 3, 5], 
+    # }
     latdir_factors = {
-        "Cn_beta": np.linspace(0.05, 1.25, 15),
-        "Cn_r": np.linspace(0.05, 1.25, 15),
+        "Cn_beta": [0, 2, 4, 6],
+        "Cn_r": [0, 6, 12, 18], 
     }
-    # sa.plot_pzmap(Axis.LATDIR, latdir_factors, showfig=True)  # Cn_beta + Cn_r in one grid
+    sa.plot_pzmap(Axis.LATDIR, latdir_factors, showfig=True)  # Cn_beta + Cn_r in one grid
 
     # Feedback gain sensitivity analysis
     ## Longitudinal poles
@@ -78,11 +85,11 @@ def main():
     }
 
     actuators = {
-        InputChannel.ELEVATOR: Actuator.second_order(omega_b=25.0, damp=0.35),
+        InputChannel.ELEVATOR: Actuator.first_order(omega_b=10),
     }
     sensors = {
-        OutputChannel.ALPHA: Sensor.first_order(tau=0.1), 
-        OutputChannel.Q: Sensor.first_order(tau=0.1),
+        OutputChannel.ALPHA: Sensor(), 
+        OutputChannel.Q: Sensor(),
     }
 
     long_points = sweep_feedback_gains(
@@ -109,12 +116,12 @@ def main():
     }
 
     actuators = {
-        InputChannel.AILERON: Actuator.second_order(omega_b=25.0, damp=0.35),
-        InputChannel.RUDDER: Actuator.second_order(omega_b=25.0, damp=0.35),
+        InputChannel.AILERON: Actuator(),
+        InputChannel.RUDDER: Actuator.first_order(omega_b=10),
     }
     sensors = {
-        OutputChannel.BETA: Sensor.first_order(tau=0.1),
-        OutputChannel.R: Sensor.first_order(tau=0.1),
+        OutputChannel.BETA: Sensor(),
+        OutputChannel.R: Sensor(),
     }
 
     latdir_points = sweep_feedback_gains(
@@ -145,8 +152,8 @@ def main():
 
     ## Longitudinal SAS
     feedback_gains = {
-        OutputChannel.ALPHA: -8.0,
-        OutputChannel.Q: -3.0,
+        OutputChannel.ALPHA: -0.5,
+        OutputChannel.Q: -0.2,
     }
     actuators = {
         InputChannel.ELEVATOR: Actuator(),
@@ -157,26 +164,6 @@ def main():
     }
     sas_long, dl_long, K_long = mySAS.build_sas(
         axis=Axis.LONG,
-        feedback_gains=feedback_gains,
-        actuators=actuators,
-        sensors=sensors,
-    )
-
-    ## Lateral-directional SAS
-    feedback_gains = {
-        OutputChannel.BETA: 0.0, # 0.6,
-        OutputChannel.R: 0.0, # 1.5,
-    }
-    actuators = {
-        InputChannel.AILERON: Actuator(),
-        InputChannel.RUDDER: Actuator(),
-    }
-    sensors = {
-        OutputChannel.BETA: Sensor(),
-        OutputChannel.R: Sensor(),
-    }
-    sas_latdir, dl_latdir, K_latdir = mySAS.build_sas(
-        axis=Axis.LATDIR,
         feedback_gains=feedback_gains,
         actuators=actuators,
         sensors=sensors,
@@ -194,6 +181,31 @@ def main():
         showfig=True,
     )
 
+    ## Lateral-directional SAS
+    feedback_gains = {
+        OutputChannel.BETA: 0,# -2,
+        OutputChannel.R: 0,# 1,
+    }
+    actuators = {
+        InputChannel.AILERON: Actuator(),
+        InputChannel.RUDDER: Actuator(),
+    }
+    sensors = {
+        OutputChannel.BETA: Sensor(),
+        OutputChannel.R: Sensor(),
+    }
+    filters = {
+        OutputChannel.BETA: Filter(),
+        OutputChannel.R: Filter(),
+    }
+    sas_latdir, dl_latdir, K_latdir = mySAS.build_sas(
+        axis=Axis.LATDIR,
+        feedback_gains=feedback_gains,
+        actuators=actuators,
+        sensors=sensors,
+        filters=filters,
+    )
+
     tra.plot_sas_response(
         sas_sys=sas_latdir,
         t=np.linspace(0, 1000, 10000),
@@ -201,9 +213,29 @@ def main():
         channel=InputChannel.AILERON,
         input_type=InputSignal.PULSE,
         amp=1.0,
-        t_end = 22.0,
+        t_i=5.0,
+        t_end=7.0,
         showfig=True,
     )
+
+    # Autopilot
+    ## Longitudinal AP
+    pid_values = {
+        "kp": np.linspace(0.1, 3.0, 8),
+        "ki": np.linspace(0.0, 0.8, 6),
+        "kd": np.linspace(0.0, 0.4, 5),
+    }
+
+    ap_long_points = sweep_pid_gains(
+        sas_sys=sas_long,
+        axis=Axis.LONG,
+        mode=AutopilotMode.THETA_HOLD,
+        gain_values=pid_values,
+        base_pid_gains=PIDGains(kp=1.0, ki=0.0, kd=0.0),
+        sensors={OutputChannel.THETA: Sensor.first_order(tau=0.1)},
+    )
+
+    sa.plot_ap_pzmap(ap_long_points, Axis.LONG, showfig=True)
 
 if __name__ == "__main__":
     main()

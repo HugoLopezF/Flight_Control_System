@@ -215,6 +215,7 @@ class TimeResponseAnalyzer:
         channel: InputChannel,
         input_type: InputSignal,
         amp: float = 1.0,
+        t_i: float = 0.0,
         t_end: float = 10.0,
     ) -> tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -234,6 +235,8 @@ class TimeResponseAnalyzer:
             Input signal type.
         amp : float, optional
             Input signal amplitude (default is 1.0).
+        t_i : float, optional
+            Input signal start time in seconds (default is 0.0).
         t_end : float, optional
             Input signal end time in seconds (default is 10.0).
 
@@ -257,7 +260,7 @@ class TimeResponseAnalyzer:
 
         u = np.zeros((sys.ninputs, len(t)))
         idx = labels.input_channels.index(channel)
-        u[idx, :] = build_input(signal=input_type, t=t, amp=np.deg2rad(amp), t_end=t_end)
+        u[idx, :] = build_input(signal=input_type, t=t, amp=np.deg2rad(amp), t_i=t_i, t_end=t_end)
 
         t_out, y_out = control.forced_response(sys, t, u)
         y_out = np.atleast_2d(y_out)
@@ -276,6 +279,7 @@ class TimeResponseAnalyzer:
         channel: InputChannel,
         input_type: InputSignal,
         amp: float = 1.0,
+        t_i: float = 0.0,
         t_end: float = 10.0,
     ) -> tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -293,6 +297,8 @@ class TimeResponseAnalyzer:
             Input signal type.
         amp : float, optional
             Input signal amplitude (default is 1.0).
+        t_i : float, optional
+            Input signal start time in seconds (default is 0.0).
         t_end : float, optional
             Input signal end time in seconds (default is 10.0).
 
@@ -303,7 +309,7 @@ class TimeResponseAnalyzer:
         """
                 
         sys = self.sys.get_sys(axis)
-        return self._get_mimo_response(sys, t, axis, channel, input_type, amp, t_end)
+        return self._get_mimo_response(sys, t, axis, channel, input_type, amp, t_i, t_end)
 
 
     def get_sas_response(
@@ -314,6 +320,7 @@ class TimeResponseAnalyzer:
         channel: InputChannel,
         input_type: InputSignal,
         amp: float = 1.0,
+        t_i: float = 0.0,
         t_end: float = 10.0,
     ) -> tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -333,6 +340,8 @@ class TimeResponseAnalyzer:
             Input signal type.
         amp : float, optional
             Input signal amplitude (default is 1.0).
+        t_i : float, optional
+            Input signal start time in seconds (default is 10.0).
         t_end : float, optional
             Input signal end time in seconds (default is 10.0).
 
@@ -342,7 +351,7 @@ class TimeResponseAnalyzer:
             Stability Augmentation System response.  
         """
             
-        return self._get_mimo_response(sas_sys, t, axis, channel, input_type, amp, t_end)
+        return self._get_mimo_response(sas_sys, t, axis, channel, input_type, amp, t_i, t_end)
         
     def plot_aircraft_response(
         self, 
@@ -422,6 +431,7 @@ class TimeResponseAnalyzer:
         channel: InputChannel,
         input_type: InputSignal,
         amp: float = 1.0,
+        t_i: float = 0.0,
         t_end: float = 10.0,
         savefig: bool = False,
         showfig: bool = False,
@@ -443,6 +453,8 @@ class TimeResponseAnalyzer:
             Input signal type.
         amp : float, optional
             Input signal amplitude (default is 1.0).
+        t_i : float, optional
+            Input signal start time in seconds (default is 0.0).
         t_end : float, optional
             Input signal end time in seconds (default is 10.0).
         savefig : bool, optional
@@ -453,7 +465,7 @@ class TimeResponseAnalyzer:
 
         sys, t_out, y_out, u = self.get_sas_response(
             sas_sys=sas_sys, t=t, axis=axis, channel=channel,
-            input_type=input_type, amp=amp, t_end=t_end
+            input_type=input_type, amp=amp, t_i=t_i, t_end=t_end
         )
 
         labels = self._labels(axis)

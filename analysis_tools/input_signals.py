@@ -41,12 +41,13 @@ def step(t: np.ndarray, amp: float = 1.0) -> np.ndarray:
     return amp * np.ones_like(t)
 
 
-def pulse(t: np.ndarray, amp: float = 1.0, t_end: float = 10.0) -> np.ndarray:
+def pulse(t: np.ndarray, amp: float = 1.0, t_i: float = 0.0, t_end: float = 10.0) -> np.ndarray:
     """
     Define pulse input signal.
 
-    u(t) = amp for t < t_end
-    u(t) = 0   for t >= t_end
+    u(t) = 0   for t < t_i
+    u(t) = amp for t_i <= t <= t_end
+    u(t) = 0   for t > t_end
 
     Parameters
     ----------
@@ -54,6 +55,8 @@ def pulse(t: np.ndarray, amp: float = 1.0, t_end: float = 10.0) -> np.ndarray:
         Time vector in seconds.
     amp : float, optional
         Pulse amplitude (default is 1.0).
+    t_i : float, optional
+        Pulse start time in seconds (default is 0.0).
     t_end : float, optional
         Pulse end time in seconds (default is 10.0).
 
@@ -63,9 +66,14 @@ def pulse(t: np.ndarray, amp: float = 1.0, t_end: float = 10.0) -> np.ndarray:
         Pulse input signal.
     """
 
-    if t_end <= 0:
-        raise ValueError("t_end must be > 0")
-    return np.where(t < t_end, amp, 0.0)
+    if t_i < 0:
+        raise ValueError("t_i must be >= 0")
+    if t_end <= t_i:
+        raise ValueError("t_end must be > t_i")
+
+    u = np.zeros_like(t, dtype=float)
+    u[(t >= t_i) & (t <= t_end)] = amp
+    return u
 
 
 def sat_ramp(t: np.ndarray, amp: float = 1.0, t_end: float = 10.0) -> np.ndarray:
@@ -97,7 +105,7 @@ def sat_ramp(t: np.ndarray, amp: float = 1.0, t_end: float = 10.0) -> np.ndarray
     return np.minimum(slope * t, amp)
 
 
-def build_input(signal: InputSignal, t: np.ndarray, amp: float = 1.0, t_end: float = 10.0) -> np.ndarray:
+def build_input(signal: InputSignal, t: np.ndarray, amp: float = 1.0, t_i: float = 0.0, t_end: float = 10.0) -> np.ndarray:
     """
     Calculate input signal.
 
@@ -109,6 +117,8 @@ def build_input(signal: InputSignal, t: np.ndarray, amp: float = 1.0, t_end: flo
         Time vector in seconds.
     amp : float, optional
         Input signal amplitude (default is 1.0).
+    t_i : float, optional
+        Pulse start time in seconds (default is 0.0).
     t_end : float, optional
         Input signal end time in seconds (default is 10.0).
 
@@ -123,5 +133,5 @@ def build_input(signal: InputSignal, t: np.ndarray, amp: float = 1.0, t_end: flo
     if signal is InputSignal.SAT_RAMP:
         return sat_ramp(t, amp, t_end)
     if signal is InputSignal.PULSE:
-        return pulse(t, amp, t_end)
+        return pulse(t, amp=amp, t_i=t_i, t_end=t_end)
     raise ValueError(f"Unsupported signal type: {signal}")

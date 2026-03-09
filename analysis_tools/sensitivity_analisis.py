@@ -515,3 +515,127 @@ class SensitivityAnalyzer:
             plt.show()
         else:
             plt.close(fig)
+
+    def plot_ap_pzmap(
+        self,
+        points: list,  # list[APDesignPoint]
+        axis: Axis,
+        gain_a: str = "kp",
+        gain_b: str = "ki",
+        gain_c: str = "kd",
+        savefig: bool = False,
+        showfig: bool = False,
+    ) -> None:
+        """
+        Plot Autopilot pole-zero map for each PID gain combination.
+
+        Parameters
+        ----------
+        points : list
+            Autopilot sweep point.
+        axis : Axis
+            Axis to analyze.
+        gain_a : str
+            Proportional gain.
+        gain_b : str
+            Integral gain.
+        gain_c : str
+            Derivative gain.
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
+        """
+                
+        allowed = {"kp", "ki", "kd"}
+        if gain_a not in allowed or gain_b not in allowed or gain_c not in allowed:
+            raise ValueError(f"gain names must be in {allowed}")
+        if len({gain_a, gain_b, gain_c}) != 3:
+            raise ValueError("gain_a, gain_b and gain_c must be different")
+        if not points:
+            raise ValueError("points is empty")
+
+        vals_a = np.array([getattr(p.pid_gains, gain_a) for p in points], dtype=float)
+        vals_b = np.array([getattr(p.pid_gains, gain_b) for p in points], dtype=float)
+        vals_c = np.array([getattr(p.pid_gains, gain_c) for p in points], dtype=float)
+
+        def _norm(vals: np.ndarray) -> plt.Normalize:
+            vmin = float(vals.min())
+            vmax = float(vals.max())
+            if np.isclose(vmin, vmax):
+                vmax = vmin + 1.0
+            return plt.Normalize(vmin, vmax)
+
+        n1 = _norm(vals_a)  # hue <- gain_a
+        n2 = _norm(vals_b)  # value/brightness <- gain_b
+
+        c_unique = np.unique(vals_c)
+        n_pan = len(c_unique)
+        ncols = min(4, n_pan)
+        nrows = int(np.ceil(n_pan / ncols))
+
+        fig, axs = plt.subplots(
+            nrows=nrows,
+            ncols=ncols,
+            figsize=(4.8 * ncols, 4.2 * nrows),
+            sharex=True,
+            sharey=True,
+        )
+        axs = np.atleast_1d(axs).ravel()
+
+        for k, cval in enumerate(c_unique):
+            ax = axs[k]
+            mask = np.isclose(vals_c, cval)
+
+            for p, va, vb, m in zip(points, vals_a, vals_b, mask):
+                if not m:
+                    continue
+                color = hsv_to_rgb((n1(va), 0.90, 0.30 + 0.70 * n2(vb)))
+                ax.plot(p.poles.real, p.poles.imag, "x", color=color, ms=7, mew=3)
+
+            ax.axhline(0.0, color="k", lw=0.8, alpha=0.6)
+            ax.axvline(0.0, color="k", lw=0.8, alpha=0.6)
+            self._add_damping_grid(ax)
+            self._add_omega_grid(ax)
+            ax.grid(True, which="both", linestyle=":", alpha=0.5)
+            ax.set_title(f"{gain_c} = {cval:g}")
+            ax.set_xlabel("Re [1/s]")
+            ax.set_ylabel("Im [rad/s]")
+
+        # Hide unused subplot slots
+        for j in range(n_pan, len(axs)):
+            axs[j].set_visible(False)
+
+        # 2D legend for gain_a/gain_b on first active axis
+        a_min, a_max = float(vals_a.min()), float(vals_a.max())
+        b_min, b_max = float(vals_b.min()), float(vals_b.max())
+        if np.isclose(a_min, a_max):
+            a_max = a_min + 1.0
+        if np.isclose(b_min, b_max):
+            b_max = b_min + 1.0
+
+        h = np.linspace(0, 1, 200)
+        v = np.linspace(0, 1, 200)
+        H, V = np.meshgrid(h, v)
+        legend_rgb = hsv_to_rgb(np.dstack((H, np.full_like(H, 0.90), 0.30 + 0.70 * V)))
+
+        iax = axs[0].inset_axes([0.56, 0.06, 0.40, 0.32])
+        iax.imshow(
+            legend_rgb,
+            origin="lower",
+            aspect="auto",
+            extent=[a_min, a_max, b_min, b_max],
+        )
+        iax.set_xlabel(gain_a, fontsize=8)
+        iax.set_ylabel(gain_b, fontsize=8)
+        iax.tick_params(labelsize=7)
+
+        fig.suptitle(f"AP PID pole sensitivity ({axis.value})")
+        fig.tight_layout()
+
+        if savefig:
+            fig.savefig(self._figure_dir() / f"ap_pid_sensitivity_{axis.value}_poles.png", dpi=180)
+        if showfig:
+            plt.show()
+        else:
+            plt.close(fig)
