@@ -3,7 +3,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import control
 from .input_signals import InputSignal, build_input
-from flight_control_system.types import Axis, InputChannel
+from flight_control_system.types import Axis, InputChannel, OutputChannel
 from flight_control_system.axis_metadata import AXIS_LABELS
 from flight_control_system.state_space import LinearizedSystem
 from collections.abc import Mapping
@@ -352,6 +352,54 @@ class TimeResponseAnalyzer:
         """
             
         return self._get_mimo_response(sas_sys, t, axis, channel, input_type, amp, t_i, t_end)
+
+    def get_ap_response(
+        self,
+        ap_sys: control.StateSpace,
+        t: np.ndarray,
+        axis: Axis,
+        input_type: InputSignal,
+        amp: float = 1.0,
+        t_i: float = 0.0,
+        t_end: float = 10.0,
+    ) -> tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
+        """
+        Obtain Autopilot response.
+
+        Parameters
+        ----------
+        ap_sys : control.StateSpace
+            Autopilot system.
+        t : np.ndarray
+            Time vector in seconds.
+        axis : Axis
+            Axis to analyze.
+        input_type : InputSignal
+            Input signal type.
+        amp : float, optional
+            Input signal amplitude (default is 1.0).
+        t_i : float, optional
+            Input signal start time in seconds (default is 10.0).
+        t_end : float, optional
+            Input signal end time in seconds (default is 10.0).
+
+        Returns
+        ----------
+        tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]
+            Autopilot response.  
+        """
+
+        u = build_input(signal=input_type, t=t, amp=np.deg2rad(amp), t_i=t_i, t_end=t_end)
+
+        t_out, y_out = control.forced_response(ap_sys, t, u)
+        y_out = np.atleast_2d(y_out)
+
+        if axis is Axis.LONG:
+            y_out[1:, :] *= 180 / np.pi
+        else:
+            y_out *= 180 / np.pi
+
+        return ap_sys, t_out, y_out, u
         
     def plot_aircraft_response(
         self, 
@@ -421,7 +469,8 @@ class TimeResponseAnalyzer:
             fig.savefig(self._figure_dir() / figname)
         if showfig:
             plt.show()
-        plt.close(fig)
+        else:
+            plt.close(fig)
 
     def plot_sas_response(
         self,
@@ -493,7 +542,87 @@ class TimeResponseAnalyzer:
             fig.savefig(self._figure_dir() / f"SAS_{axis.value}_{channel.value}_{input_type.value}_{amp}deg.png")
         if showfig:
             plt.show()
-        plt.close(fig)
+        else:
+            plt.close(fig)
+
+    def plot_ap_response(
+        self,
+        ap_sys: control.StateSpace,
+        t: np.ndarray,
+        axis: Axis,
+        input_type: InputSignal,
+        amp: float = 1.0,
+        t_i: float = 0.0,
+        t_end: float = 10.0,
+        savefig: bool = False,
+        showfig: bool = False,
+    ):
+        """
+        Plot Autopilot response for selected input type and axis.
+
+        Parameters
+        ----------
+        ap_sys : control.StateSpace
+            Autopilot system.
+        t : np.ndarray
+            Time vector in seconds.
+        axis : Axis
+            Axis to analyze.
+        input_type : InputSignal
+            Input signal type.
+        amp : float, optional
+            Input signal amplitude (default is 1.0).
+        t_i : float, optional
+            Input signal start time in seconds (default is 0.0).
+        t_end : float, optional
+            Input signal end time in seconds (default is 10.0).
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
+        """
+
+        sys, t_out, y_out, u = self.get_ap_response(
+            ap_sys=ap_sys, t=t, axis=axis, input_type=input_type, 
+            amp=amp, t_i=t_i, t_end=t_end
+        )
+
+        labels = self._labels(axis)
+        sys.input_labels = [f'${v}$' for v in labels.inputs]
+        sys.output_labels = [f'${v}$' for v in labels.states]
+
+        ap_input = {
+            Axis.LONG: OutputChannel.THETA, 
+            Axis.LATDIR: OutputChannel.PHI,
+            }
+        ap_idx = self.labels[axis].state_channels.index(ap_input[axis])
+
+        fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
+        fig.suptitle(f'AP response for {axis.value} axis to {amp}deg {input_type.value} in {ap_input[axis].value}')
+
+        for i, ax in enumerate(np.atleast_1d(axes)):
+            y = y_out[i, :]
+            ax.plot(t_out, y)
+            n_tail = max(1, int(0.1 * len(y)))
+            y_ss = float(np.mean(y[-n_tail:]))
+            ax.axhline(y_ss, color="red", linestyle="--", linewidth=1.2, label=f"ss = {y_ss:.3g}")
+            if i == ap_idx:
+                l = labels.states[ap_idx]
+                ax.plot(t_out, u * 180 / np.pi, color="green", linestyle="--", linewidth=1.2, label=f"${l}_{{cmd}}$")
+            ax.set_ylabel(sys.output_labels[i])
+            ax.minorticks_on()
+            ax.grid(True, which="major", linestyle="-", alpha=0.5)
+            ax.grid(True, which="minor", linestyle=":", alpha=0.35)
+            ax.legend(loc="best")
+
+        np.atleast_1d(axes)[-1].set_xlabel("$t$ [s]")
+
+        if savefig:
+            fig.savefig(self._figure_dir() / f"AP_{axis.value}_{ap_input[axis].value}_{input_type.value}_{amp}deg.png")
+        if showfig:
+            plt.show()
+        else:
+            plt.close(fig)
 
     def plot_full_response(self, t: np.ndarray, input_type: InputSignal, amp: float = 1.0, t_end: float = 10.0, savefig: bool = False, showfig: bool = False) -> None:
         """

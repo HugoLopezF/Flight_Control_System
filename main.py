@@ -11,7 +11,7 @@ from flight_control_system.actuator import Actuator
 from flight_control_system.sensor import Sensor
 from flight_control_system.filter import Filter, FilterType
 from flight_control_system.sas_design import sweep_feedback_gains
-from flight_control_system.autopilot import AutopilotMode, PIDGains
+from flight_control_system.autopilot import AP, AutopilotMode, PIDGains
 from flight_control_system.autopilot_design import sweep_pid_gains
 
 def main():
@@ -37,10 +37,10 @@ def main():
 
     # # Compare actuators
     # act_map = {
-    #     r'1st order lag $\omega_{B} = 1rad/s$': Actuator(omega_b=1.0, order='first').tf(),
-    #     r'1st order lag $\omega_{B} = 25rad/s$': Actuator(omega_b=25.0, order='first').tf(),
-    #     r'2nd order lag $\omega_{B} = 25rad/s$, $\xi = 0.3$': Actuator(omega_b=25.0, damp=0.3, order='second').tf(),
-    #     r'2nd order lag $\omega_{B} = 25rad/s$, $\xi = 0.8$': Actuator(omega_b=25.0, damp=0.8, order='second').tf()
+    #     r'1st order lag $\omega_{B} = 1rad/s$': Actuator.first_order(omega_b=1.0).tf(),
+    #     r'1st order lag $\omega_{B} = 25rad/s$': Actuator.first_order(omega_b=25.0).tf(),
+    #     r'2nd order lag $\omega_{B} = 25rad/s$, $\xi = 0.3$': Actuator.second_order(omega_b=25.0, damp=0.3).tf(),
+    #     r'2nd order lag $\omega_{B} = 25rad/s$, $\xi = 0.8$': Actuator.second_order(omega_b=25.0, damp=0.8).tf()
     # }
     # FrequencyAnalyzer.compare_components(tf_map=act_map, showfig=True)
 
@@ -53,7 +53,7 @@ def main():
     # t = np.linspace(0, 3, 10000)
     # TimeResponseAnalyzer.compare_components(tf_map=sens_map, t=t, input_type=InputSignal.SAT_RAMP, amp=1, t_end=1, showfig=True)
 
-    # # Stability coefficients sweep
+    # Stability coefficients sweep
     sa = SensitivityAnalyzer("Learjet_24")
     long_factors = {
         "Cm_alpha": [-0.5, -0.2, 0, 0.5, 1, 2, 3, 4], 
@@ -61,13 +61,9 @@ def main():
     }
     sa.plot_pzmap(Axis.LONG, long_factors, showfig=True)    # Cm_alpha + Cm_q in one grid
 
-    # latdir_factors = {
-    #     "Cn_beta": [0, 0.5, 1, 2, 3],
-    #     "Cn_r": [0, 0.5, 1, 2, 3, 5], 
-    # }
     latdir_factors = {
-        "Cn_beta": [0, 2, 4, 6],
-        "Cn_r": [0, 6, 12, 18], 
+        "Cn_beta": [0, 0.5, 1, 2, 3],
+        "Cn_r": [0, 0.5, 1, 2, 3, 5], 
     }
     sa.plot_pzmap(Axis.LATDIR, latdir_factors, showfig=True)  # Cn_beta + Cn_r in one grid
 
@@ -103,6 +99,28 @@ def main():
     sa = SensitivityAnalyzer("Learjet_24")
     sa.plot_sas_pzmap(long_points, Axis.LONG, OutputChannel.ALPHA, OutputChannel.Q, showfig=True)
 
+    ## Nichols
+    sys_map = {
+        rf"$K_{{\alpha}}$={p.feedback_gains[OutputChannel.ALPHA]:.1f}, $K_{{q}}$={p.feedback_gains[OutputChannel.Q]:.1f}": p.sas_sys
+        for p in long_points
+    }
+
+    # FrequencyAnalyzer.compare_sas_nichols(
+    #     sys_map=sys_map,
+    #     axis=Axis.LONG,
+    #     out_ch=OutputChannel.ALPHA,
+    #     in_ch=InputChannel.ELEVATOR,
+    #     showfig=True,
+    # )
+
+    # FrequencyAnalyzer.compare_sas_nichols(
+    #     sys_map=sys_map,
+    #     axis=Axis.LONG,
+    #     out_ch=OutputChannel.Q,
+    #     in_ch=InputChannel.ELEVATOR,
+    #     showfig=True,
+    # )
+
     ## Lateral-directional poles
     Cn_beta = myaircraft.stab_coeffs.latdir.Cn_beta
     Cn_r = myaircraft.stab_coeffs.latdir.Cn_r
@@ -110,13 +128,17 @@ def main():
     b = myaircraft.geom.b
     u_s = myaircraft.flight_cond.u_s
 
+    # latdir_gain_values = {
+    #     OutputChannel.BETA: [-(F_beta - 1.0) * Cn_beta / Cn_delta_r for F_beta in latdir_factors['Cn_beta']],
+    #     OutputChannel.R: [-(F_r - 1.0) * Cn_r / Cn_delta_r * b / (2.0 * u_s) for F_r in latdir_factors['Cn_r']],
+    # }
     latdir_gain_values = {
-        OutputChannel.BETA: [-(F_beta - 1.0) * Cn_beta / Cn_delta_r for F_beta in latdir_factors['Cn_beta']],
-        OutputChannel.R: [-(F_r - 1.0) * Cn_r / Cn_delta_r * b / (2.0 * u_s) for F_r in latdir_factors['Cn_r']],
+        OutputChannel.BETA: [-1, -2, -3, -4],
+        OutputChannel.R: [0.25, 0.5, 0.75, 1],
     }
 
     actuators = {
-        InputChannel.AILERON: Actuator(),
+        InputChannel.AILERON: Actuator.first_order(omega_b=10),
         InputChannel.RUDDER: Actuator.first_order(omega_b=10),
     }
     sensors = {
@@ -134,29 +156,38 @@ def main():
 
     sa.plot_sas_pzmap(latdir_points, Axis.LATDIR, OutputChannel.BETA, OutputChannel.R, showfig=True)
 
-    # ## Nichols
-    # sys_map = {
-    #     f"Kalpha={p.feedback_gains[OutputChannel.ALPHA]:.2f}, Kq={p.feedback_gains[OutputChannel.Q]:.2f}": p.sas_sys
-    #     for p in long_points
-    # }
+    ## Nichols
+    sys_map = {
+        rf"$K_{{\beta}}$={p.feedback_gains[OutputChannel.BETA]:.1f}, $K_{{r}}$={p.feedback_gains[OutputChannel.R]:.1f}": p.sas_sys
+        for p in latdir_points
+    }
+
     # FrequencyAnalyzer.compare_sas_nichols(
     #     sys_map=sys_map,
-    #     axis=Axis.LONG,
-    #     out_ch=OutputChannel.Q,
-    #     in_ch=InputChannel.ELEVATOR,
+    #     axis=Axis.LATDIR,
+    #     out_ch=OutputChannel.BETA,
+    #     in_ch=InputChannel.AILERON,
     #     showfig=True,
     # )
 
-    # SAS Response
+    # FrequencyAnalyzer.compare_sas_nichols(
+    #     sys_map=sys_map,
+    #     axis=Axis.LATDIR,
+    #     out_ch=OutputChannel.R,
+    #     in_ch=InputChannel.AILERON,
+    #     showfig=True,
+    # )
+
+    # Select gains after sensitivity study and build your SAS
     mySAS = SAS(mylin_sys)
 
     ## Longitudinal SAS
     feedback_gains = {
-        OutputChannel.ALPHA: -0.5,
+        OutputChannel.ALPHA: -0.75,
         OutputChannel.Q: -0.2,
     }
     actuators = {
-        InputChannel.ELEVATOR: Actuator(),
+        InputChannel.ELEVATOR: Actuator.first_order(omega_b=10),
     }
     sensors = {
         OutputChannel.ALPHA: Sensor(),
@@ -172,7 +203,7 @@ def main():
     tra = TimeResponseAnalyzer(mylin_sys)
     tra.plot_sas_response(
         sas_sys=sas_long,
-        t=np.linspace(0, 1000, 10000),
+        t=np.linspace(0, 100, 10000),
         axis=Axis.LONG,
         channel=InputChannel.ELEVATOR,
         input_type=InputSignal.SAT_RAMP,
@@ -183,20 +214,19 @@ def main():
 
     ## Lateral-directional SAS
     feedback_gains = {
-        OutputChannel.BETA: 0,# -2,
-        OutputChannel.R: 0,# 1,
+        OutputChannel.BETA: -2,
+        OutputChannel.R: 0.55,
     }
     actuators = {
-        InputChannel.AILERON: Actuator(),
-        InputChannel.RUDDER: Actuator(),
+        InputChannel.AILERON: Actuator.first_order(omega_b=10),
+        InputChannel.RUDDER: Actuator.first_order(omega_b=10),
     }
     sensors = {
         OutputChannel.BETA: Sensor(),
         OutputChannel.R: Sensor(),
     }
     filters = {
-        OutputChannel.BETA: Filter(),
-        OutputChannel.R: Filter(),
+        OutputChannel.R: Filter.highpass(omega_b=2), # Washout filter
     }
     sas_latdir, dl_latdir, K_latdir = mySAS.build_sas(
         axis=Axis.LATDIR,
@@ -208,7 +238,7 @@ def main():
 
     tra.plot_sas_response(
         sas_sys=sas_latdir,
-        t=np.linspace(0, 1000, 10000),
+        t=np.linspace(0, 100, 10000),
         axis=Axis.LATDIR,
         channel=InputChannel.AILERON,
         input_type=InputSignal.PULSE,
@@ -220,22 +250,132 @@ def main():
 
     # Autopilot
     ## Longitudinal AP
-    pid_values = {
-        "kp": np.linspace(0.1, 3.0, 8),
-        "ki": np.linspace(0.0, 0.8, 6),
-        "kd": np.linspace(0.0, 0.4, 5),
+    long_pid_values = {
+        "kp": np.linspace(0.1, 3.0, 3),
+        "ki": np.linspace(0.0, 0.8, 3),
     }
 
-    ap_long_points = sweep_pid_gains(
+    long_ap_points = sweep_pid_gains(
         sas_sys=sas_long,
         axis=Axis.LONG,
         mode=AutopilotMode.THETA_HOLD,
-        gain_values=pid_values,
-        base_pid_gains=PIDGains(kp=1.0, ki=0.0, kd=0.0),
-        sensors={OutputChannel.THETA: Sensor.first_order(tau=0.1)},
+        gain_values=long_pid_values,
+        sensors={OutputChannel.THETA: Sensor()},
     )
 
-    sa.plot_ap_pzmap(ap_long_points, Axis.LONG, showfig=True)
+    sa.plot_ap_pzmap(long_ap_points, Axis.LONG, showfig=True)
+
+    ## Nichols
+    sys_map = {
+        f"$K_{{p}}$={p.pid_gains.kp:.1f}, $K_{{i}}$={p.pid_gains.ki:.1f}": p.ap_sys
+        for p in long_ap_points
+    }
+
+    FrequencyAnalyzer.compare_ap_nichols(
+        sys_map=sys_map,
+        axis=Axis.LONG,
+        out_ch=OutputChannel.ALPHA,
+        in_ch=InputChannel.ELEVATOR,
+        showfig=True,
+    )
+
+    FrequencyAnalyzer.compare_ap_nichols(
+        sys_map=sys_map,
+        axis=Axis.LONG,
+        out_ch=OutputChannel.Q,
+        in_ch=InputChannel.ELEVATOR,
+        showfig=True,
+    )
+
+    ## Lateral-directional AP
+    latdir_pid_values = {
+        "kp": np.linspace(0.1, 3.0, 8),
+    }
+
+    latdir_ap_points = sweep_pid_gains(
+        sas_sys=sas_latdir,
+        axis=Axis.LATDIR,
+        mode=AutopilotMode.PHI_HOLD,
+        gain_values=latdir_pid_values,
+        sensors={OutputChannel.THETA: Sensor()},
+    )
+
+    sa.plot_ap_pzmap(latdir_ap_points, Axis.LATDIR, showfig=True)
+
+    ## Nichols
+    sys_map = {
+        f"$K_{{p}}$={p.pid_gains.kp:.1f}": p.ap_sys
+        for p in latdir_ap_points
+    }
+
+    FrequencyAnalyzer.compare_ap_nichols(
+        sys_map=sys_map,
+        axis=Axis.LATDIR,
+        out_ch=OutputChannel.BETA,
+        in_ch=InputChannel.AILERON,
+        showfig=True,
+    )
+
+    FrequencyAnalyzer.compare_ap_nichols(
+        sys_map=sys_map,
+        axis=Axis.LATDIR,
+        out_ch=OutputChannel.R,
+        in_ch=InputChannel.AILERON,
+        showfig=True,
+    )
+
+    # Select PID gains after sensitivity study and build your AP
+    my_long_AP = AP(sas_long)
+
+    ## Longitudinal AP
+    PID_gains = PIDGains(
+        kp=-1.0, 
+        ki=0.8,
+    )
+    sensors = {
+        OutputChannel.THETA: Sensor(),
+    }
+    ap_long, cl_z_long, C_long = my_long_AP.build_ap(
+        axis=Axis.LONG,
+        mode=AutopilotMode.THETA_HOLD,
+        sensors=sensors,
+        pid_gains=PID_gains,
+    )
+
+    tra.plot_ap_response(
+        ap_sys=ap_long,
+        t=np.linspace(0, 200, 10000),
+        axis=Axis.LONG,
+        input_type=InputSignal.SAT_RAMP,
+        amp=1.0,
+        t_end = 0.2,
+        showfig=True,
+    )
+
+    ## Lateral-directional AP
+    my_latdir_AP = AP(sas_latdir)
+    PID_gains = PIDGains(
+        kp=1.0, 
+    )
+    sensors = {
+        OutputChannel.PHI: Sensor(),
+    }
+    ap_latdir, cl_z_long, C_long = my_latdir_AP.build_ap(
+        axis=Axis.LATDIR,
+        mode=AutopilotMode.PHI_HOLD,
+        sensors=sensors,
+        pid_gains=PID_gains,
+    )
+
+    tra.plot_ap_response(
+        ap_sys=ap_latdir,
+        t=np.linspace(0, 200, 10000),
+        axis=Axis.LATDIR,
+        input_type=InputSignal.SAT_RAMP,
+        amp=15.0,
+        t_end = 15.0,
+        showfig=True,
+    )
 
 if __name__ == "__main__":
     main()

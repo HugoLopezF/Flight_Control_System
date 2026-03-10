@@ -442,7 +442,82 @@ class FrequencyAnalyzer:
 
         i = AXIS_LABELS[axis].state_channels.index(out_ch)
         j = AXIS_LABELS[axis].input_channels.index(in_ch)
-        omega = np.logspace(np.log10(omega_limits[0]), np.log10(omega_limits[1]), 500)
+        omega = np.logspace(np.log10(omega_limits[0]), np.log10(omega_limits[1]), 10000)
+
+        fig, ax = plt.subplots(figsize=(8, 6))
+        control.nichols_grid()  # Draw grid first
+
+        for name, sys in sys_map.items():
+            n0 = len(ax.get_lines())
+            control.nichols_plot(sys[i, j], omega=omega, ax=ax)
+            new_lines = ax.get_lines()[n0:]
+
+            if not new_lines:
+                continue
+
+            # One legend entry per system
+            new_lines[0].set_label(name)
+            for ln in new_lines[1:]:
+                ln.set_label("_nolegend_")
+
+        fig.suptitle(title)
+        ax.legend(loc="best")
+        ax.set_title(f"Nichols comparison: {out_ch.value}/{in_ch.value}")
+        ax.grid(True, which="both", linestyle=":", alpha=0.5)
+
+        if savefig and save_path is not None:
+            figname = f'{title.replace(" ", "_")}.png'
+            save_path = Path(save_path)
+            save_path.parent.mkdir(parents=True, exist_ok=True)
+            fig.savefig(save_path / figname)
+        if showfig:
+            plt.show()
+        else:
+            plt.close(fig)
+
+    @staticmethod
+    def compare_ap_nichols(
+        sys_map: Mapping[str, control.StateSpace],
+        axis: Axis,
+        out_ch: OutputChannel,
+        in_ch: InputChannel,
+        omega_limits: tuple[float, float] = (1e-1, 1e3),
+        title: str = "AP Nichols plot sensitivity analysis",
+        showfig: bool = False,
+        savefig: bool = False,
+        save_path: str | Path | None = None,
+    ) -> None:
+        """
+        Compare Autopilot Nichols plot when varying PID gains.
+
+        Parameters
+        ----------
+        sys_map : Mapping[str, control.StateSpace]
+            Autopilots to compare.
+        axis : Axis
+            Axis to analyze.
+        out_ch : OutputChannel
+            Output/State channel to analyze.
+        in_ch : InputChannel
+            Input channel to analyze.
+        omega_limits : tuple[float, float], optional
+            Bode plot x-axis limits in rad/s (default is (1e-1, 1e3)).
+        title : str, optional
+            Figure title (default is "AP Nichols plot sensitivity analysis").
+        savefig : bool, optional
+            Option to save figure (default is False).
+        showfig : bool, optional
+            Option to show figure (default is False).
+        save_path : str | Path | None, optional
+            Figure saving path (default is None).
+        """
+                
+        if not sys_map:
+            raise ValueError("sys_map is empty.")
+
+        i = AXIS_LABELS[axis].state_channels.index(out_ch)
+        j = AXIS_LABELS[axis].input_channels.index(in_ch)
+        omega = np.logspace(np.log10(omega_limits[0]), np.log10(omega_limits[1]), 10000)
 
         fig, ax = plt.subplots(figsize=(8, 6))
         control.nichols_grid()  # Draw grid first
