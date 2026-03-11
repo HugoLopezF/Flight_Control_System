@@ -1,8 +1,26 @@
 import numpy as np
 from pathlib import Path
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import control
 from .input_signals import InputSignal, build_input
+
+# Plot styling (keep consistent across analysis scripts)
+mpl.rcParams.update(
+    {
+        # LaTeX-like look without requiring a TeX install
+        "font.family": "serif",
+        "font.serif": ["STIXGeneral", "DejaVu Serif", "Times New Roman"],
+        "mathtext.fontset": "stix",
+        "axes.labelsize": 12,
+        "axes.titlesize": 14,
+        "axes.titleweight": "normal",
+        "figure.titlesize": 14,
+        "figure.titleweight": "normal",
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+    }
+)
 from flight_control_system.types import Axis, InputChannel, OutputChannel
 from flight_control_system.axis_metadata import AXIS_LABELS
 from flight_control_system.state_space import LinearizedSystem
@@ -49,7 +67,7 @@ class TimeResponseAnalyzer:
     plot_full_response()
         Plot aircraft's response for selected input type for all axes.
     """
-        
+
     AXES = (Axis.LONG, Axis.LATDIR)
 
     def __init__(self, lin_sys: LinearizedSystem, fig_root: str | Path = "flight_dynamics"):
@@ -86,7 +104,7 @@ class TimeResponseAnalyzer:
         """
 
         return self.labels[axis]
-    
+
     def _figure_dir(self) -> Path:
         """
         Construct figure saving directory.
@@ -100,13 +118,13 @@ class TimeResponseAnalyzer:
         figdir = self.fig_root / self.sys.aircraft.model
         figdir.mkdir(parents=True, exist_ok=True)
         return figdir
-    
+
     @staticmethod
     def get_component_response(
         tf: control.TransferFunction | control.StateSpace,
-        t: np.ndarray, 
+        t: np.ndarray,
         input_type: InputSignal,
-        amp: float = 1.0, 
+        amp: float = 1.0,
         t_end: float = 10.0,
     ) -> tuple[control.TransferFunction | control.StateSpace, np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -128,7 +146,7 @@ class TimeResponseAnalyzer:
         Returns
         ----------
         tuple[control.TransferFunction | control.StateSpace, np.ndarray, np.ndarray, np.ndarray]
-            Component transfer function and response.   
+            Component transfer function and response.
         """
 
         # Fill input channels
@@ -143,13 +161,13 @@ class TimeResponseAnalyzer:
         u *= 180 / np.pi
 
         return tf, t_out, y_out, u
-    
+
     @staticmethod
     def compare_components(
         tf_map: Mapping[str, control.TransferFunction],
         t: np.ndarray,
-        input_type: InputSignal, 
-        amp: float = 1.0, 
+        input_type: InputSignal,
+        amp: float = 1.0,
         t_end: float = 10.0,
         title: str = "Actuator response Comparison",
         showfig: bool = False,
@@ -178,7 +196,7 @@ class TimeResponseAnalyzer:
         showfig : bool, optional
             Option to show figure (default is False).
         save_path : str | Path | None, optional
-            Figure saving path (default is None).  
+            Figure saving path (default is None).
         """
 
         if not tf_map:
@@ -190,9 +208,11 @@ class TimeResponseAnalyzer:
             tf, t_out, y_out, u = TimeResponseAnalyzer.get_component_response(tf=tf, t=t, input_type=input_type, amp=amp, t_end=t_end)
             plt.plot(t_out, y_out, label=label)
         plt.plot(t_out, u, label='Input')
-        plt.grid(which='both')
-        plt.ylabel('$y(t)$ [deg]')
-        plt.xlabel('$t$ [s]')
+        plt.minorticks_on()
+        plt.grid(True, which="major", linestyle="-", alpha=0.5)
+        plt.grid(True, which="minor", linestyle=":", alpha=0.35)
+        plt.ylabel('$y(t)$ [deg]', fontsize=12)
+        plt.xlabel('$t$ [s]', fontsize=12)
         plt.legend(loc="best")
         plt.tight_layout()
 
@@ -201,7 +221,7 @@ class TimeResponseAnalyzer:
             figname = f'{title.replace(" ", "_")}.png'
             save_path = Path(save_path)
             save_path.parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(save_path / figname)
+            fig.savefig(save_path / figname, dpi=300)
         if showfig:
             plt.show()
         else:
@@ -243,9 +263,9 @@ class TimeResponseAnalyzer:
         Returns
         ----------
         tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]
-            System's response.  
+            System's response.
         """
-                
+
         labels = self._labels(axis)
 
         if channel not in labels.input_channels:
@@ -305,9 +325,9 @@ class TimeResponseAnalyzer:
         Returns
         ----------
         tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]
-            Aircraft's response.  
+            Aircraft's response.
         """
-                
+    
         sys = self.sys.get_sys(axis)
         return self._get_mimo_response(sys, t, axis, channel, input_type, amp, t_i, t_end)
 
@@ -348,9 +368,9 @@ class TimeResponseAnalyzer:
         Returns
         ----------
         tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]
-            Stability Augmentation System response.  
+            Stability Augmentation System response.
         """
-            
+    
         return self._get_mimo_response(sas_sys, t, axis, channel, input_type, amp, t_i, t_end)
 
     def get_ap_response(
@@ -386,9 +406,14 @@ class TimeResponseAnalyzer:
         Returns
         ----------
         tuple[control.StateSpace, np.ndarray, np.ndarray, np.ndarray]
-            Autopilot response.  
+            Autopilot response.
         """
 
+        if ap_sys.ninputs != 1:
+            raise ValueError(
+                f"AP system must have 1 input (command). Got ninputs={ap_sys.ninputs}. "
+                "Pass the ap_sys returned by AP.build_ap()."
+            )
         u = build_input(signal=input_type, t=t, amp=np.deg2rad(amp), t_i=t_i, t_end=t_end)
 
         t_out, y_out = control.forced_response(ap_sys, t, u)
@@ -400,16 +425,16 @@ class TimeResponseAnalyzer:
             y_out *= 180 / np.pi
 
         return ap_sys, t_out, y_out, u
-        
+
     def plot_aircraft_response(
-        self, 
-        t: np.ndarray, 
-        axis: Axis, 
-        channel: InputChannel, 
-        input_type: InputSignal, 
-        amp: float = 1.0, 
-        t_end: float = 10.0, 
-        savefig: bool = False, 
+        self,
+        t: np.ndarray,
+        axis: Axis,
+        channel: InputChannel,
+        input_type: InputSignal,
+        amp: float = 1.0,
+        t_end: float = 10.0,
+        savefig: bool = False,
         showfig: bool = False
     ) -> None:
         """
@@ -443,8 +468,12 @@ class TimeResponseAnalyzer:
         sys.output_labels = [f'${var}$' for var in labels.states]
 
         # Plot response
-        fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
-        fig.suptitle(f'System response for {axis.value} axis to a {amp}deg {input_type.value} in {channel.value}', fontsize=13)
+        fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True, figsize=(8, 10))
+        fig.suptitle(
+            f"Aircraft response for {axis.value} axis to a {amp}deg {input_type.value} in {channel.value}",
+            y=0.98,
+        )
+        axes = np.atleast_1d(axes)
         for i, ax in enumerate(axes):
             y = y_out[i, :]
             ax.plot(t_out, y)
@@ -454,19 +483,38 @@ class TimeResponseAnalyzer:
             y_ss = float(np.mean(y[-n_tail:]))
             ax.axhline(y_ss, color="red", linestyle="--", linewidth=1.2, label=f"ss = {y_ss:.3g}")
 
-            ax.set_ylabel(sys.output_labels[i])
+            units = f"[{labels.state_units[i]}]"
+            ax.set_ylabel(" ".join([sys.output_labels[i], units]), fontsize=12)
 
             ax.minorticks_on()
             ax.grid(True, which="major", linestyle="-", alpha=0.5)
             ax.grid(True, which="minor", linestyle=":", alpha=0.35)
 
-            ax.legend(loc="best")
-        axes[-1].set_xlabel('$t$ [s]')
+            if i != len(axes) - 1:
+                ax.legend(loc="best")
+
+        # Plot input on a secondary (right) axis for all subplots
+        idx = labels.input_channels.index(channel)
+        u_deg = u[idx, :] * 180 / np.pi
+        units_in = f"[{labels.input_units[idx]}]"
+        for ax in axes:
+            ax_in = ax.twinx()
+            ax_in.plot(t_out, u_deg, color="green", linestyle="--", linewidth=1.2, label="Input")
+            ax_in.set_ylabel(" ".join([sys.input_labels[idx], units_in]), fontsize=12)
+            ax_in.tick_params(labelsize=12)
+
+            # Merge legends
+            lines1, labels1 = ax.get_legend_handles_labels()
+            lines2, labels2 = ax_in.get_legend_handles_labels()
+            ax.legend(lines1 + lines2, labels1 + labels2, loc="best")
+
+        axes[-1].set_xlabel('$t$ [s]', fontsize=12)
+        fig.tight_layout(rect=[0, 0, 1, 0.96])
 
         # Save/show plot
         if savefig:
             figname = self.sys.aircraft.model + f'{amp}_deg_{input_type.value}_{channel.value}_response.png'
-            fig.savefig(self._figure_dir() / figname)
+            fig.savefig(self._figure_dir() / figname, dpi=300)
         if showfig:
             plt.show()
         else:
@@ -521,25 +569,47 @@ class TimeResponseAnalyzer:
         sys.input_labels = [f'${v}$' for v in labels.inputs]
         sys.output_labels = [f'${v}$' for v in labels.states]
 
-        fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
-        fig.suptitle(f'SAS response for {axis.value} axis to {amp}deg {input_type.value} in {channel.value}')
+        fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True, figsize=(8, 10))
+        fig.suptitle(
+            f"SAS response for {axis.value} axis to {amp}deg {input_type.value} in {channel.value}",
+            y=0.98,
+        )
 
-        for i, ax in enumerate(np.atleast_1d(axes)):
+        axes = np.atleast_1d(axes)
+        for i, ax in enumerate(axes):
             y = y_out[i, :]
             ax.plot(t_out, y)
             n_tail = max(1, int(0.1 * len(y)))
             y_ss = float(np.mean(y[-n_tail:]))
             ax.axhline(y_ss, color="red", linestyle="--", linewidth=1.2, label=f"ss = {y_ss:.3g}")
-            ax.set_ylabel(sys.output_labels[i])
+            units = f"[{labels.state_units[i]}]"
+            ax.set_ylabel(" ".join([sys.output_labels[i], units]), fontsize=12)
             ax.minorticks_on()
             ax.grid(True, which="major", linestyle="-", alpha=0.5)
             ax.grid(True, which="minor", linestyle=":", alpha=0.35)
-            ax.legend(loc="best")
+            if i != len(axes) - 1:
+                ax.legend(loc="best")
 
-        np.atleast_1d(axes)[-1].set_xlabel("$t$ [s]")
+        # Plot input on a secondary (right) axis for all subplots
+        idx = labels.input_channels.index(channel)
+        u_deg = u[idx, :] * 180 / np.pi
+        units_in = f"[{labels.input_units[idx]}]"
+        for ax in axes:
+            ax_in = ax.twinx()
+            ax_in.plot(t_out, u_deg, color="green", linestyle="--", linewidth=1.2, label="Input")
+            ax_in.set_ylabel(" ".join([sys.input_labels[idx], units_in]), fontsize=12)
+            ax_in.tick_params(labelsize=12)
+
+            # Merge legends
+            lines1, labels1 = ax.get_legend_handles_labels()
+            lines2, labels2 = ax_in.get_legend_handles_labels()
+            ax.legend(lines1 + lines2, labels1 + labels2, loc="best")
+
+        axes[-1].set_xlabel("$t$ [s]", fontsize=12)
+        fig.tight_layout(rect=[0, 0, 1, 0.96])
 
         if savefig:
-            fig.savefig(self._figure_dir() / f"SAS_{axis.value}_{channel.value}_{input_type.value}_{amp}deg.png")
+            fig.savefig(self._figure_dir() / f"SAS_{axis.value}_{channel.value}_{input_type.value}_{amp}deg.png", dpi=300)
         if showfig:
             plt.show()
         else:
@@ -583,7 +653,7 @@ class TimeResponseAnalyzer:
         """
 
         sys, t_out, y_out, u = self.get_ap_response(
-            ap_sys=ap_sys, t=t, axis=axis, input_type=input_type, 
+            ap_sys=ap_sys, t=t, axis=axis, input_type=input_type,
             amp=amp, t_i=t_i, t_end=t_end
         )
 
@@ -592,15 +662,19 @@ class TimeResponseAnalyzer:
         sys.output_labels = [f'${v}$' for v in labels.states]
 
         ap_input = {
-            Axis.LONG: OutputChannel.THETA, 
+            Axis.LONG: OutputChannel.THETA,
             Axis.LATDIR: OutputChannel.PHI,
             }
         ap_idx = self.labels[axis].state_channels.index(ap_input[axis])
 
-        fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True)
-        fig.suptitle(f'AP response for {axis.value} axis to {amp}deg {input_type.value} in {ap_input[axis].value}')
+        fig, axes = plt.subplots(len(sys.output_labels), 1, sharex=True, figsize=(8, 10))
+        fig.suptitle(
+            f"AP response for {axis.value} axis to {amp}deg {input_type.value} in {ap_input[axis].value}",
+            y=0.98,
+        )
 
-        for i, ax in enumerate(np.atleast_1d(axes)):
+        axes = np.atleast_1d(axes)
+        for i, ax in enumerate(axes):
             y = y_out[i, :]
             ax.plot(t_out, y)
             n_tail = max(1, int(0.1 * len(y)))
@@ -608,17 +682,36 @@ class TimeResponseAnalyzer:
             ax.axhline(y_ss, color="red", linestyle="--", linewidth=1.2, label=f"ss = {y_ss:.3g}")
             if i == ap_idx:
                 l = labels.states[ap_idx]
-                ax.plot(t_out, u * 180 / np.pi, color="green", linestyle="--", linewidth=1.2, label=f"${l}_{{cmd}}$")
-            ax.set_ylabel(sys.output_labels[i])
+            ax_in = ax.twinx()
+            ax_in.plot(
+                t_out,
+                u * 180 / np.pi,
+                color="green",
+                linestyle="--",
+                linewidth=1.2,
+                label=f"${l}_{{cmd}}$" if i == ap_idx else "Input",
+            )
+            ax_in.set_ylabel(
+                f"${l}_{{cmd}}$ [$^\\circ$]" if i == ap_idx else "Input [$^\\circ$]",
+                fontsize=12,
+            )
+            ax_in.tick_params(labelsize=12)
+            units = f"[{labels.state_units[i]}]"
+            ax.set_ylabel(" ".join([sys.output_labels[i], units]), fontsize=12)
             ax.minorticks_on()
             ax.grid(True, which="major", linestyle="-", alpha=0.5)
             ax.grid(True, which="minor", linestyle=":", alpha=0.35)
-            ax.legend(loc="best")
 
-        np.atleast_1d(axes)[-1].set_xlabel("$t$ [s]")
+            # Merge legends
+            lines1, labels1 = ax.get_legend_handles_labels()
+            lines2, labels2 = ax_in.get_legend_handles_labels()
+            ax.legend(lines1 + lines2, labels1 + labels2, loc="best")
+
+        axes[-1].set_xlabel("$t$ [s]", fontsize=12)
+        fig.tight_layout(rect=[0, 0, 1, 0.96])
 
         if savefig:
-            fig.savefig(self._figure_dir() / f"AP_{axis.value}_{ap_input[axis].value}_{input_type.value}_{amp}deg.png")
+            fig.savefig(self._figure_dir() / f"AP_{axis.value}_{ap_input[axis].value}_{input_type.value}_{amp}deg.png", dpi=300)
         if showfig:
             plt.show()
         else:
@@ -643,7 +736,7 @@ class TimeResponseAnalyzer:
         """
 
         # Loop through all axes and input channels
-        for axis in self.AXES:        
+        for axis in self.AXES:
             labels = self._labels(axis)
             for ch in labels.input_channels:
                 self.plot_aircraft_response(t, axis=axis, input_type=input_type, amp=amp, t_end=t_end, channel=ch, savefig=savefig, showfig=showfig)

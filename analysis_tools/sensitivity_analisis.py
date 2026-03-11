@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import control
 from pathlib import Path
@@ -9,8 +10,61 @@ from flight_dynamics.data_classes import LinearizationParameters
 from flight_dynamics.stability_derivatives import StabilityDerivativesCalculator
 from flight_control_system.state_space import LinearizedSystem
 from flight_control_system.types import Axis, OutputChannel
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from itertools import product
-from matplotlib.colors import hsv_to_rgb
+from matplotlib.colors import rgb_to_hsv, hsv_to_rgb
+
+mpl.rcParams["savefig.dpi"] = 300
+
+# Plot styling (keep consistent across analysis scripts)
+mpl.rcParams.update(
+    {
+        # LaTeX-like look without requiring a TeX install
+        "font.family": "serif",
+        "font.serif": ["STIXGeneral", "DejaVu Serif", "Times New Roman"],
+        "mathtext.fontset": "stix",
+        "axes.labelsize": 12,
+        "axes.titlesize": 14,
+        "axes.titleweight": "normal",
+        "figure.titlesize": 14,
+        "figure.titleweight": "normal",
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+    }
+)
+
+# LaTeX-like labels for coefficients, gains, and channels
+LATEX_LABELS = {
+    # Stability coefficients
+    "Cm_alpha": r"$C_{m_{\alpha}}$",
+    "Cm_q": r"$C_{m_{q}}$",
+    "Cm_delta_e": r"$C_{m_{\delta_e}}$",
+    "Cn_beta": r"$C_{n_{\beta}}$",
+    "Cn_r": r"$C_{n_{r}}$",
+    "Cn_delta_r": r"$C_{n_{\delta_r}}$",
+    "Cl_beta": r"$C_{l_{\beta}}$",
+    "Cl_p": r"$C_{l_{p}}$",
+    "Cl_r": r"$C_{l_{r}}$",
+    "Cl_delta_a": r"$C_{l_{\delta_a}}$",
+    "Cl_delta_r": r"$C_{l_{\delta_r}}$",
+    # Output channels
+    "alpha": r"$\alpha$",
+    "beta": r"$\beta$",
+    "theta": r"$\theta$",
+    "phi": r"$\phi$",
+    "p": r"$p$",
+    "q": r"$q$",
+    "r": r"$r$",
+    "u": r"$u$",
+    # PID gains
+    "kp": r"$K_p$",
+    "ki": r"$K_i$",
+    "kd": r"$K_d$",
+}
+
+
+def _latex_label(name: str) -> str:
+    return LATEX_LABELS.get(name, f"${name}$")
 
 
 @dataclass(frozen=True)
@@ -154,7 +208,7 @@ class SensitivityAnalyzer:
         y_min, y_max = ax.get_ylim()
 
         # Left-half-plane semicircles: sigma^2 + omega_d^2 = omega_n^2
-        th = np.linspace(-np.pi / 2, np.pi / 2, 600)
+        th = np.linspace(-np.pi / 2, np.pi / 2, 1000)
 
         for wn in omegas:
             if wn <= 0:
@@ -169,7 +223,7 @@ class SensitivityAnalyzer:
 
             x_vis = x[mask]
             y_vis = y[mask]
-            ax.plot(x_vis, y_vis, ":", color=color, alpha=alpha, lw=lw, zorder=0)
+            ax.plot(x_vis, y_vis, "--", color=color, alpha=alpha, lw=lw, zorder=0)
 
             # Label from visible segment (not fixed angle)
             idx = int(0.75 * (x_vis.size - 1))  # upper branch
@@ -212,7 +266,7 @@ class SensitivityAnalyzer:
         y_min, y_max = ax.get_ylim()
 
         # Left half-plane only
-        x_left = np.linspace(min(x_min, -1e-6), 0.0, 400)
+        x_left = np.linspace(min(x_min, -1e-6), 0.0, 1000)
         y_abs_max = max(abs(y_min), abs(y_max))
 
         for zeta in zetas:
@@ -368,47 +422,62 @@ class SensitivityAnalyzer:
                 vmax = vmin + 1.0
 
             norm = plt.Normalize(vmin, vmax)
-            cmap = plt.get_cmap("viridis")
+            cmap = plt.get_cmap("jet")
 
             for p in points:
                 cv = p.factors[name]
                 ax.plot(p.poles.real, p.poles.imag, "x", color=cmap(norm(cv)), ms=7, mew=3)
 
+            # colorbar outside
             sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
             sm.set_array([])
-            fig.colorbar(sm, ax=ax, pad=0.02, label=f"{name} factor")
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="3.5%", pad=0.12)
+            cbar = fig.colorbar(sm, cax=cax, label=f"{_latex_label(name)} factor")
+            cbar.set_label(f"{_latex_label(name)} factor", fontsize=12)
+            cbar.ax.tick_params(labelsize=12)
 
         else:
             # Two-parameter bivariate color:
             # hue <- coeff_a, value/brightness <- coeff_b
+            fig.subplots_adjust(right=0.78)
             a_vals = np.array([p.factors[coeff_a] for p in points], dtype=float)
             b_vals = np.array([p.factors[coeff_b] for p in points], dtype=float)
 
-            n1 = plt.Normalize(a_vals.min(), a_vals.max() if not np.isclose(a_vals.min(), a_vals.max()) else a_vals.min() + 1.0)
-            n2 = plt.Normalize(b_vals.min(), b_vals.max() if not np.isclose(b_vals.min(), b_vals.max()) else b_vals.min() + 1.0)
+            cmap = plt.get_cmap("jet")
+            n1 = plt.Normalize(a_vals.min(), a_vals.max())
+            n2 = plt.Normalize(b_vals.min(), b_vals.max())
 
+            # --- point colors (jet hue + brightness from b) ---
             for p, va, vb in zip(points, a_vals, b_vals):
-                h = n1(va)
+                rgb = np.array(cmap(n1(va))[:3])
+                h, s, _ = rgb_to_hsv(rgb.reshape(1, -1))[0]
                 v = 0.30 + 0.70 * n2(vb)
-                color = hsv_to_rgb((h, 0.90, v))
+                color = hsv_to_rgb([h, s, v])
                 ax.plot(p.poles.real, p.poles.imag, "x", color=color, ms=7, mew=3)
 
-            # 2D legend inset
+            # --- legend outside: jet hue on x, brightness on y ---
             h = np.linspace(0, 1, 200)
-            v = np.linspace(0, 1, 200)
+            v = np.linspace(0.30, 1.0, 200)
             H, V = np.meshgrid(h, v)
-            legend_rgb = hsv_to_rgb(np.dstack((H, np.full_like(H, 0.90), 0.30 + 0.70 * V)))
 
-            iax = ax.inset_axes([0.62, 0.06, 0.33, 0.33])
+            rgb = cmap(H)[..., :3]                    # jet colors along H
+            hsv = rgb_to_hsv(rgb)
+            hsv[..., 2] = V                           # replace value with brightness
+            legend_rgb = hsv_to_rgb(hsv)
+
+            fig.subplots_adjust(right=0.78)           # leave space
+            bbox = ax.get_position()
+            iax = fig.add_axes([bbox.x1 + 0.02, bbox.y0 + 0.05, 0.18, 0.28])
             iax.imshow(
                 legend_rgb,
                 origin="lower",
                 aspect="auto",
                 extent=[a_vals.min(), a_vals.max(), b_vals.min(), b_vals.max()],
             )
-            iax.set_xlabel(f"{coeff_a} factor", fontsize=8)
-            iax.set_ylabel(f"{coeff_b} factor", fontsize=8)
-            iax.tick_params(labelsize=7)
+            iax.set_xlabel(f"{_latex_label(coeff_a)} factor", fontsize=12)
+            iax.set_ylabel(f"{_latex_label(coeff_b)} factor", fontsize=12)
+            iax.tick_params(labelsize=12)
 
         ax.axhline(0.0, color="k", lw=0.8, alpha=0.6)
         ax.axvline(0.0, color="k", lw=0.8, alpha=0.6)
@@ -417,11 +486,11 @@ class SensitivityAnalyzer:
         ax.grid(True, which="both", linestyle=":", alpha=0.5)
         ax.set_xlabel("Re [1/s]")
         ax.set_ylabel("Im [rad/s]")
-        ax.set_title(f"Pole sensitivity ({group.value})")
+        ax.set_title(f"Aircraft pole sensitivity ({group.value})")
 
         fig.tight_layout()
         if savefig:
-            fig.savefig(self._figure_dir() / f"sensitivity_{group.value}_poles.png", dpi=180)
+            fig.savefig(self._figure_dir() / f"sensitivity_{group.value}_poles.png", dpi=300)
         if showfig:
             plt.show()
         else:
@@ -464,27 +533,40 @@ class SensitivityAnalyzer:
         varied_b = len(np.unique(vals_b)) > 1
 
         if varied_a and varied_b:
-            n1 = plt.Normalize(vals_a.min(), vals_a.max() if not np.isclose(vals_a.min(), vals_a.max()) else vals_a.min() + 1.0)
-            n2 = plt.Normalize(vals_b.min(), vals_b.max() if not np.isclose(vals_b.min(), vals_b.max()) else vals_b.min() + 1.0)
-            for p, va, vb in zip(points, vals_a, vals_b):
-                color = hsv_to_rgb((n1(va), 0.90, 0.30 + 0.70 * n2(vb)))
-                ax.plot(p.poles.real, p.poles.imag, "x", color=color, ms=7, mew=3)
-            # 2D legend inset
-            h = np.linspace(0, 1, 200)
-            v = np.linspace(0, 1, 200)
-            H, V = np.meshgrid(h, v)
-            legend_rgb = hsv_to_rgb(np.dstack((H, np.full_like(H, 0.90), 0.30 + 0.70 * V)))
+            cmap = plt.get_cmap("jet")
+            n1 = plt.Normalize(vals_a.min(), vals_a.max())
+            n2 = plt.Normalize(vals_b.min(), vals_b.max())
 
-            iax = ax.inset_axes([0.62, 0.06, 0.33, 0.33])
+            # --- point colors (jet hue + brightness from b) ---
+            for p, va, vb in zip(points, vals_a, vals_b):
+                rgb = np.array(cmap(n1(va))[:3])
+                h, s, _ = rgb_to_hsv(rgb.reshape(1, -1))[0]
+                v = 0.30 + 0.70 * n2(vb)
+                color = hsv_to_rgb([h, s, v])
+                ax.plot(p.poles.real, p.poles.imag, "x", color=color, ms=7, mew=3)
+
+            # --- legend outside: jet hue on x, brightness on y ---
+            h = np.linspace(0, 1, 200)
+            v = np.linspace(0.30, 1.0, 200)
+            H, V = np.meshgrid(h, v)
+
+            rgb = cmap(H)[..., :3]                    # jet colors along H
+            hsv = rgb_to_hsv(rgb)
+            hsv[..., 2] = V                           # replace value with brightness
+            legend_rgb = hsv_to_rgb(hsv)
+
+            fig.subplots_adjust(right=0.78)           # leave space
+            bbox = ax.get_position()
+            iax = fig.add_axes([bbox.x1 + 0.02, bbox.y0 + 0.05, 0.18, 0.28])
             iax.imshow(
                 legend_rgb,
                 origin="lower",
                 aspect="auto",
                 extent=[vals_a.min(), vals_a.max(), vals_b.min(), vals_b.max()],
             )
-            iax.set_xlabel(f"{gain_a.value} gain", fontsize=8)
-            iax.set_ylabel(f"{gain_b.value} gain", fontsize=8)
-            iax.tick_params(labelsize=7)
+            iax.set_xlabel(f"{_latex_label(gain_a.value)} gain", fontsize=12)
+            iax.set_ylabel(f"{_latex_label(gain_b.value)} gain", fontsize=12)
+            iax.tick_params(labelsize=12)
         else:
             name = gain_a if varied_a else gain_b
             cvals = np.array([p.feedback_gains[name] for p in points], dtype=float)
@@ -492,12 +574,14 @@ class SensitivityAnalyzer:
             if np.isclose(vmin, vmax):
                 vmax = vmin + 1.0
             norm = plt.Normalize(vmin, vmax)
-            cmap = plt.get_cmap("viridis")
+            cmap = plt.get_cmap("jet")
             for p in points:
                 ax.plot(p.poles.real, p.poles.imag, "x", color=cmap(norm(p.feedback_gains[name])), ms=7, mew=3)
             sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
             sm.set_array([])
-            fig.colorbar(sm, ax=ax, pad=0.02, label=f"{name.value} gain")
+            cbar = fig.colorbar(sm, ax=ax, pad=0.02, label=f"{_latex_label(name.value)} gain")
+            cbar.set_label(f"{_latex_label(name.value)} gain", fontsize=12)
+            cbar.ax.tick_params(labelsize=12)
 
         ax.axhline(0.0, color="k", lw=0.8, alpha=0.6)
         ax.axvline(0.0, color="k", lw=0.8, alpha=0.6)
@@ -510,7 +594,7 @@ class SensitivityAnalyzer:
 
         fig.tight_layout()
         if savefig:
-            fig.savefig(self._figure_dir() / f"sas_sensitivity_{axis.value}_poles.png", dpi=180)
+            fig.savefig(self._figure_dir() / f"sas_sensitivity_{axis.value}_poles.png", dpi=300)
         if showfig:
             plt.show()
         else:
@@ -566,8 +650,52 @@ class SensitivityAnalyzer:
                 vmax = vmin + 1.0
             return plt.Normalize(vmin, vmax)
 
+        var_a = len(np.unique(vals_a)) > 1
+        var_b = len(np.unique(vals_b)) > 1
+        var_c = len(np.unique(vals_c)) > 1
+        varied = [(gain_a, vals_a, var_a), (gain_b, vals_b, var_b), (gain_c, vals_c, var_c)]
+        varied = [v for v in varied if v[2]]
+
+        # If only one gain is swept, show a 1D colorbar instead of a 2D colormap
+        if len(varied) == 1:
+            name, vals, _ = varied[0]
+            fig, ax = plt.subplots(figsize=(9, 6))
+            cmap = plt.get_cmap("jet")
+            norm = _norm(vals)
+
+            for p, v in zip(points, vals):
+                ax.plot(p.poles.real, p.poles.imag, "x", color=cmap(norm(v)), ms=7, mew=3)
+
+            sm = plt.cm.ScalarMappable(norm=norm, cmap=cmap)
+            sm.set_array([])
+            cbar = fig.colorbar(sm, ax=ax, pad=0.02, label=f"{_latex_label(name)} gain")
+            cbar.set_label(f"{_latex_label(name)} gain", fontsize=12)
+            cbar.ax.tick_params(labelsize=12)
+
+            ax.axhline(0.0, color="k", lw=0.8, alpha=0.6)
+            ax.axvline(0.0, color="k", lw=0.8, alpha=0.6)
+            self._add_damping_grid(ax)
+            self._add_omega_grid(ax)
+            ax.grid(True, which="both", linestyle=":", alpha=0.5)
+            ax.set_xlabel("Re [1/s]")
+            ax.set_ylabel("Im [rad/s]")
+            ax.set_title(f"AP PID pole sensitivity ({axis.value})")
+
+            fig.tight_layout()
+            if savefig:
+                fig.savefig(self._figure_dir() / f"ap_pid_sensitivity_{axis.value}_poles.png", dpi=300)
+            if showfig:
+                plt.show()
+            else:
+                plt.close(fig)
+            return
+
         n1 = _norm(vals_a)  # hue <- gain_a
-        n2 = _norm(vals_b)  # value/brightness <- gain_b
+        # value/brightness <- gain_b (force mid if constant)
+        if np.isclose(vals_b.min(), vals_b.max()):
+            n2 = lambda _: 0.5
+        else:
+            n2 = _norm(vals_b)
 
         c_unique = np.unique(vals_c)
         n_pan = len(c_unique)
@@ -590,7 +718,13 @@ class SensitivityAnalyzer:
             for p, va, vb, m in zip(points, vals_a, vals_b, mask):
                 if not m:
                     continue
-                color = hsv_to_rgb((n1(va), 0.90, 0.30 + 0.70 * n2(vb)))
+                cmap = plt.get_cmap("jet")
+
+                rgb = np.array(cmap(n1(va))[:3])
+                h, s, _ = rgb_to_hsv(rgb.reshape(1, -1))[0]
+                v = 0.30 + 0.70 * n2(vb)
+                color = hsv_to_rgb([h, s, v])
+
                 ax.plot(p.poles.real, p.poles.imag, "x", color=color, ms=7, mew=3)
 
             ax.axhline(0.0, color="k", lw=0.8, alpha=0.6)
@@ -615,26 +749,34 @@ class SensitivityAnalyzer:
             b_max = b_min + 1.0
 
         h = np.linspace(0, 1, 200)
-        v = np.linspace(0, 1, 200)
+        v = np.linspace(0.30, 1.0, 200)
         H, V = np.meshgrid(h, v)
-        legend_rgb = hsv_to_rgb(np.dstack((H, np.full_like(H, 0.90), 0.30 + 0.70 * V)))
 
-        iax = axs[0].inset_axes([0.56, 0.06, 0.40, 0.32])
+        rgb = cmap(H)[..., :3]      # jet colors along H
+        hsv = rgb_to_hsv(rgb)
+        hsv[..., 2] = V             # replace value with brightness
+        legend_rgb = hsv_to_rgb(hsv)
+
+        # reserve space on the right
+        fig.subplots_adjust(right=0.78)
+
+        bbox = axs[0].get_position()
+        iax = fig.add_axes([bbox.x1 + 0.02, bbox.y0 + 0.05, 0.18, 0.28])
         iax.imshow(
             legend_rgb,
             origin="lower",
             aspect="auto",
             extent=[a_min, a_max, b_min, b_max],
         )
-        iax.set_xlabel(gain_a, fontsize=8)
-        iax.set_ylabel(gain_b, fontsize=8)
-        iax.tick_params(labelsize=7)
+        iax.set_xlabel(_latex_label(gain_a), fontsize=12)
+        iax.set_ylabel(_latex_label(gain_b), fontsize=12)
+        iax.tick_params(labelsize=12)
 
         fig.suptitle(f"AP PID pole sensitivity ({axis.value})")
         fig.tight_layout()
 
         if savefig:
-            fig.savefig(self._figure_dir() / f"ap_pid_sensitivity_{axis.value}_poles.png", dpi=180)
+            fig.savefig(self._figure_dir() / f"ap_pid_sensitivity_{axis.value}_poles.png", dpi=300)
         if showfig:
             plt.show()
         else:

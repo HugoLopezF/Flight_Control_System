@@ -1,12 +1,30 @@
 from pathlib import Path
 import numpy as np
 import control
+import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from flight_control_system.state_space import LinearizedSystem
 from flight_control_system.axis_metadata import AXIS_LABELS, AxisLabels
 from flight_control_system.types import Axis, InputChannel, OutputChannel
 from collections.abc import Mapping
+
+# Plot styling (keep consistent across analysis scripts)
+mpl.rcParams.update(
+    {
+        # LaTeX-like look without requiring a TeX install
+        "font.family": "serif",
+        "font.serif": ["STIXGeneral", "DejaVu Serif", "Times New Roman"],
+        "mathtext.fontset": "stix",
+        "axes.labelsize": 12,
+        "axes.titlesize": 14,
+        "axes.titleweight": "normal",
+        "figure.titlesize": 14,
+        "figure.titleweight": "normal",
+        "xtick.labelsize": 12,
+        "ytick.labelsize": 12,
+    }
+)
 
 class FrequencyAnalyzer:
     """
@@ -219,10 +237,18 @@ class FrequencyAnalyzer:
 
                 # Bode plot
                 control.bode_plot(sys[i, j], omega_limits=self.bode_lims[axis], dB=True, ax=[ax_mag, ax_phase])
+                ax_mag.set_ylabel("Magnitude [dB]", fontsize=12)
+                ax_phase.set_ylabel("Phase [deg]", fontsize=12)
+                ax_phase.set_xlabel("Frequency [rad/s]", fontsize=12)
+                ax_mag.tick_params(labelsize=12)
+                ax_phase.tick_params(labelsize=12)
 
                 # Nichols plot
                 control.nichols_plot(sys[i, j], omega=self.bode_lims[axis], ax=ax_nichols)
                 ax_nichols.set_ylim(ax_mag.get_ylim())
+                ax_nichols.set_xlabel("Phase [deg]", fontsize=12)
+                ax_nichols.set_ylabel("Magnitude [dB]", fontsize=12)
+                ax_nichols.tick_params(labelsize=12)
                 # Replot to convert phase (y axis) to positive if necessary
                 if ax_phase.get_ylim()[1] < -170:
                     plt.close(fig)
@@ -240,17 +266,22 @@ class FrequencyAnalyzer:
                     ax_mag.set_ylabel("Magnitude [dB]")
                     ax_mag.grid(True, which="both")
                     ax_mag.set_xlim(self.bode_lims[axis])
+                    ax_mag.tick_params(labelsize=12)
 
                     ax_phase.semilogx(omega, np.unwrap(np.degrees(phase), discont=8*np.pi))
                     ax_phase.set_ylabel("Phase [deg]")
                     ax_phase.set_xlabel("Frequency [rad/s]")
                     ax_phase.grid(True, which="both")
+                    ax_phase.tick_params(labelsize=12)
 
                     control.nichols_plot(sys[i, j], omega=self.bode_lims[axis], ax=ax_nichols)
                     ax_nichols.set_ylim(ax_mag.get_ylim())
                     min_phase = ax_phase.get_ylim()[0]
                     max_phase = ax_phase.get_ylim()[1]
                     ax_nichols.set_xlim((min_phase, max_phase))
+                    ax_nichols.set_xlabel("Phase [deg]", fontsize=12)
+                    ax_nichols.set_ylabel("Magnitude [dB]", fontsize=12)
+                    ax_nichols.tick_params(labelsize=12)
                 else:
                     ax_nichols.set_xlim(ax_phase.get_ylim())
                 ax_mag.set_title("Bode")
@@ -262,7 +293,7 @@ class FrequencyAnalyzer:
                     input_var = self._clean_label(input_l)
                     state_var = self._clean_label(state_l)
                     figname = self.sys.aircraft.model + f'_{state_var}_{input_var}_Bode_Nichols.png'
-                    fig.savefig(self._figure_dir() / figname)
+                    fig.savefig(self._figure_dir() / figname, dpi=300)
                 if showfig:
                     plt.show()
                 else:
@@ -291,6 +322,11 @@ class FrequencyAnalyzer:
                 # Figure layout
                 fig = plt.figure()
                 control.bode_plot(sys[i, j], omega_limits=self.bode_lims[axis], dB=True)
+                # Enforce label/tick sizing
+                for ax in fig.axes:
+                    ax.tick_params(labelsize=12)
+                    ax.xaxis.label.set_size(12)
+                    ax.yaxis.label.set_size(12)
                 plt.suptitle(fr'Bode diagram of $[G(i\omega)]_{{{state_l+input_l}}} = \frac{{{state_l}}}{{{input_l}}}$')
                 plt.tight_layout()
 
@@ -299,7 +335,7 @@ class FrequencyAnalyzer:
                     input_var = self._clean_label(input_l)
                     state_var = self._clean_label(state_l)
                     figname = self.sys.aircraft.model + f'_{state_var}_{input_var}_Bode.png'
-                    fig.savefig(self._figure_dir() / figname)
+                    fig.savefig(self._figure_dir() / figname, dpi=300)
                 if showfig:
                     plt.show()
                 else:
@@ -328,6 +364,10 @@ class FrequencyAnalyzer:
                 # Figure layout
                 fig = plt.figure()
                 control.nichols_plot(sys[i, j], omega=self.bode_lims[axis])
+                ax = plt.gca()
+                ax.set_xlabel("Phase [deg]", fontsize=12)
+                ax.set_ylabel("Magnitude [dB]", fontsize=12)
+                ax.tick_params(labelsize=12)
                 plt.suptitle(fr'Nichols diagram of $[G(i\omega)]_{{{state_l+input_l}}} = \frac{{{state_l}}}{{{input_l}}}$')
                 plt.tight_layout()
 
@@ -336,7 +376,7 @@ class FrequencyAnalyzer:
                     input_var = self._clean_label(input_l)
                     state_var = self._clean_label(state_l)
                     figname = self.sys.aircraft.model + f'_{state_var}_{input_var}_Nichols.png'
-                    fig.savefig(self._figure_dir() / figname)
+                    fig.savefig(self._figure_dir() / figname, dpi=300)
                 if showfig:
                     plt.show()
                 else:
@@ -346,7 +386,7 @@ class FrequencyAnalyzer:
     def compare_components(
         tf_map: Mapping[str, control.TransferFunction],
         omega_limits: tuple[float, float] = (1e-1, 1e3),
-        title: str = "Actuator Bode Comparison", # TODO: Change with component type
+        title: str = "Component Bode Comparison", # TODO: Change with component type
         showfig: bool = False,
         savefig: bool = False,
         save_path: str | Path | None = None,
@@ -361,7 +401,7 @@ class FrequencyAnalyzer:
         omega_limits : tuple[float, float], optional
             Bode plot x-axis limits in rad/s (default is (1e-1, 1e3)).
         title : str, optional
-            Figure title (default is "Actuator Bode Comparison").
+            Figure title (default is "Component Bode Comparison").
         savefig : bool, optional
             Option to save figure (default is False).
         showfig : bool, optional
@@ -378,6 +418,11 @@ class FrequencyAnalyzer:
 
         fig, (ax_mag, ax_phase) = plt.subplots(2, 1, sharex=True)
         control.bode_plot(systems, omega_limits=omega_limits, dB=True, deg=True, ax=[ax_mag, ax_phase])
+        ax_mag.set_ylabel("Magnitude [dB]", fontsize=12)
+        ax_phase.set_ylabel("Phase [deg]", fontsize=12)
+        ax_phase.set_xlabel("Frequency [rad/s]", fontsize=12)
+        ax_mag.tick_params(labelsize=12)
+        ax_phase.tick_params(labelsize=12)
 
         # Attach labels to plotted lines
         for line, lbl in zip(ax_mag.get_lines(), labels):
@@ -394,7 +439,7 @@ class FrequencyAnalyzer:
             figname = f'{title.replace(" ", "_")}.png'
             save_path = Path(save_path)
             save_path.parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(save_path / figname)
+            fig.savefig(save_path / figname, dpi=300)
         if showfig:
             plt.show()
         else:
@@ -447,7 +492,19 @@ class FrequencyAnalyzer:
         fig, ax = plt.subplots(figsize=(8, 6))
         control.nichols_grid()  # Draw grid first
 
+        # Auto-scale limits based on actual response data
+        phase_all = []
+        mag_db_all = []
+
         for name, sys in sys_map.items():
+            resp = control.frequency_response(sys[i, j], omega)
+            mag = np.squeeze(resp.magnitude)
+            phase = np.squeeze(resp.phase)
+            mag_db = 20 * np.log10(mag)
+            phase_deg = np.unwrap(np.degrees(phase), discont=8 * np.pi)
+            phase_all.append(phase_deg)
+            mag_db_all.append(mag_db)
+
             n0 = len(ax.get_lines())
             control.nichols_plot(sys[i, j], omega=omega, ax=ax)
             new_lines = ax.get_lines()[n0:]
@@ -465,11 +522,20 @@ class FrequencyAnalyzer:
         ax.set_title(f"Nichols comparison: {out_ch.value}/{in_ch.value}")
         ax.grid(True, which="both", linestyle=":", alpha=0.5)
 
+        if phase_all and mag_db_all:
+            phase_all = np.concatenate(phase_all)
+            mag_db_all = np.concatenate(mag_db_all)
+            ax.set_xlim(phase_all.min() - 10.0, phase_all.max() + 10.0)
+            ax.set_ylim(mag_db_all.min() - 5.0, mag_db_all.max() + 5.0)
+        ax.set_xlabel("Phase [deg]", fontsize=12)
+        ax.set_ylabel("Magnitude [dB]", fontsize=12)
+        ax.tick_params(labelsize=12)
+
         if savefig and save_path is not None:
             figname = f'{title.replace(" ", "_")}.png'
             save_path = Path(save_path)
             save_path.parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(save_path / figname)
+            fig.savefig(save_path / figname, dpi=300)
         if showfig:
             plt.show()
         else:
@@ -522,7 +588,19 @@ class FrequencyAnalyzer:
         fig, ax = plt.subplots(figsize=(8, 6))
         control.nichols_grid()  # Draw grid first
 
+        # Auto-scale limits based on actual response data
+        phase_all = []
+        mag_db_all = []
+
         for name, sys in sys_map.items():
+            resp = control.frequency_response(sys[i, j], omega)
+            mag = np.squeeze(resp.magnitude)
+            phase = np.squeeze(resp.phase)
+            mag_db = 20 * np.log10(mag)
+            phase_deg = np.unwrap(np.degrees(phase), discont=8 * np.pi)
+            phase_all.append(phase_deg)
+            mag_db_all.append(mag_db)
+
             n0 = len(ax.get_lines())
             control.nichols_plot(sys[i, j], omega=omega, ax=ax)
             new_lines = ax.get_lines()[n0:]
@@ -540,11 +618,20 @@ class FrequencyAnalyzer:
         ax.set_title(f"Nichols comparison: {out_ch.value}/{in_ch.value}")
         ax.grid(True, which="both", linestyle=":", alpha=0.5)
 
+        if phase_all and mag_db_all:
+            phase_all = np.concatenate(phase_all)
+            mag_db_all = np.concatenate(mag_db_all)
+            ax.set_xlim(phase_all.min() - 10.0, phase_all.max() + 10.0)
+            ax.set_ylim(mag_db_all.min() - 5.0, mag_db_all.max() + 5.0)
+        ax.set_xlabel("Phase [deg]", fontsize=12)
+        ax.set_ylabel("Magnitude [dB]", fontsize=12)
+        ax.tick_params(labelsize=12)
+
         if savefig and save_path is not None:
             figname = f'{title.replace(" ", "_")}.png'
             save_path = Path(save_path)
             save_path.parent.mkdir(parents=True, exist_ok=True)
-            fig.savefig(save_path / figname)
+            fig.savefig(save_path / figname, dpi=300)
         if showfig:
             plt.show()
         else:

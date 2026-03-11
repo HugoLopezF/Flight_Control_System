@@ -92,9 +92,27 @@ class AP:
 
     Attributes
     ----------
+    SUPPORTED_AUTOPILOT
+        Supported autopilots and their corresponding architecture
+    sys
+        Stability Augmentation System.
 
     Methods
     ----------
+    _feedback_channels()
+        Obtain feedback channels to use in Autopilot.
+    _sensor_block()
+        Obtain sensors block to use in Autopilot.
+    _output_selector()
+        Create matrix to select outputs for feedback in Autopilot.
+    _command_allocation()
+        Allocate commanded input channel in Autopilot.
+    _controlled_var_block()
+        Obtain controlled variable from weighted outputs or dynamics in Autopilot.
+    _pid_tf()
+        Obtain PID controller from gains.
+    build_ap()
+        Construct Autopilot.
     """
 
     SUPPORTED_AUTOPILOT: dict[AutopilotMode, AutopilotSpec] = {
@@ -339,6 +357,6 @@ class AP:
         # Controlled variable from true outputs
         full_channels = AXIS_LABELS[axis].state_channels
         W_out = self._controlled_var_block(full_channels, spec.controlled)  # 1 x ny
-        cl_z = control.series(W_out, ap_sys)                              # 1 x 1
+        cl_z = control.series(ap_sys, W_out)                              # 1 x 1
 
         return ap_sys, cl_z, C_ap
